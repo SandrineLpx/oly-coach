@@ -56,6 +56,33 @@ export type Database = {
         }
         Relationships: []
       }
+      body_weight_logs: {
+        Row: {
+          created_at: string
+          id: string
+          logged_at: string
+          unit: string
+          user_id: string
+          weight: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          logged_at?: string
+          unit?: string
+          user_id: string
+          weight: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          logged_at?: string
+          unit?: string
+          user_id?: string
+          weight?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

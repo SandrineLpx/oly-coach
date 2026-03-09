@@ -9,6 +9,7 @@ import {
   ReadinessCheck,
   PlannedSession,
   SessionType,
+  BodyWeightEntry,
 } from './types';
 import { 
   generateSessionExercises, 
@@ -16,7 +17,7 @@ import {
   generateTimeGuidance,
   getDaysSinceHeavySession,
 } from './training-logic';
-import { addDays, format, startOfWeek, endOfWeek, parseISO, isToday, isSameDay } from 'date-fns';
+import { addDays, format, startOfWeek, endOfWeek, parseISO, isToday, isSameDay, subDays } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 
 interface AppState {
@@ -40,6 +41,12 @@ interface AppState {
   // Training Log
   trainingLog: LoggedSession[];
   logSession: (session: LoggedSession) => void;
+  
+  // Body Weight
+  bodyWeightLog: BodyWeightEntry[];
+  logBodyWeight: (entry: Omit<BodyWeightEntry, 'id'>) => void;
+  deleteBodyWeight: (id: string) => void;
+  getRecentWeights: (days: number) => BodyWeightEntry[];
   
   // Preferences
   preferences: Preferences;
@@ -91,6 +98,7 @@ export const useAppStore = create<AppState>()(
       prs: [],
       currentPlan: null,
       trainingLog: [],
+      bodyWeightLog: [],
       preferences: defaultPreferences,
       todayReadiness: null,
 
@@ -220,6 +228,42 @@ export const useAppStore = create<AppState>()(
       })),
       
       setReadiness: (check) => set({ todayReadiness: check }),
+
+      logBodyWeight: (entry) => {
+        const id = generateId();
+        const fullEntry: BodyWeightEntry = { ...entry, id };
+        set((state) => ({
+          bodyWeightLog: [...state.bodyWeightLog, fullEntry],
+        }));
+        // Persist to database
+        (async () => {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return;
+          await supabase.from('body_weight_logs').insert({
+            id,
+            user_id: user.id,
+            weight: entry.weight,
+            unit: entry.unit,
+            logged_at: entry.date,
+          });
+        })();
+      },
+
+      deleteBodyWeight: (id) => {
+        set((state) => ({
+          bodyWeightLog: state.bodyWeightLog.filter(e => e.id !== id),
+        }));
+        (async () => {
+          await supabase.from('body_weight_logs').delete().eq('id', id);
+        })();
+      },
+
+      getRecentWeights: (days) => {
+        const cutoff = subDays(new Date(), days);
+        return get().bodyWeightLog
+          .filter(e => parseISO(e.date) >= cutoff)
+          .sort((a, b) => a.date.localeCompare(b.date));
+      },
       
       getTodaySession: () => {
         const plan = get().currentPlan;
@@ -243,6 +287,7 @@ export const useAppStore = create<AppState>()(
         prs: [],
         currentPlan: null,
         trainingLog: [],
+        bodyWeightLog: [],
         preferences: defaultPreferences,
         todayReadiness: null,
       }),
@@ -331,5 +376,18 @@ export function loadDemoData() {
   ];
   
   demoLogs.forEach(log => store.logSession(log));
+  
+  // Demo body weight entries (last 14 days)
+  const baseWeight = 78;
+  for (let i = 13; i >= 0; i--) {
+    const variation = (Math.random() - 0.5) * 1.2;
+    const trend = -0.03 * i; // slight downward trend
+    store.logBodyWeight({
+      weight: parseFloat((baseWeight + trend + variation).toFixed(1)),
+      unit: 'kg',
+      date: format(subDays(new Date(), i), 'yyyy-MM-dd'),
+    });
+  }
+  
   store.completeOnboarding();
 }

@@ -13,6 +13,7 @@ import CheckIn from "./pages/CheckIn";
 import LogSession from "./pages/LogSession";
 import PRs from "./pages/PRs";
 import History from "./pages/History";
+import BodyWeight from "./pages/BodyWeight";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -38,6 +39,7 @@ const App = () => {
               <Route path="/checkin" element={<CheckIn />} />
               <Route path="/log" element={<LogSession />} />
               <Route path="/prs" element={<PRs />} />
+              <Route path="/weight" element={<BodyWeight />} />
               <Route path="/history" element={<History />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="*" element={<NotFound />} />

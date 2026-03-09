@@ -1,4 +1,4 @@
-import { Home, Calendar, PlayCircle, ClipboardList, Trophy, Settings } from 'lucide-react';
+import { Home, Calendar, PlayCircle, Scale, Trophy, Settings } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -7,7 +7,7 @@ const navItems = [
   { to: '/', icon: Home, label: 'Home' },
   { to: '/plan', icon: Calendar, label: 'Plan' },
   { to: '/checkin', icon: PlayCircle, label: 'Train' },
-  { to: '/history', icon: ClipboardList, label: 'Log' },
+  { to: '/weight', icon: Scale, label: 'Weight' },
   { to: '/prs', icon: Trophy, label: 'PRs' },
 ];
 

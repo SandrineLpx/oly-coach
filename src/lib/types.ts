@@ -96,6 +96,13 @@ export interface Preferences {
   darkMode: boolean; // Always dark, but we keep it
 }
 
+export interface BodyWeightEntry {
+  id: string;
+  weight: number;
+  unit: 'kg' | 'lb';
+  date: string; // ISO date string (YYYY-MM-DD)
+}
+
 // Demo data types
 export interface DemoData {
   profile: AthleteProfile;
@@ -103,4 +110,5 @@ export interface DemoData {
   weeklyPlan: WeeklyPlan | null;
   trainingLog: LoggedSession[];
   preferences: Preferences;
+  bodyWeightLog: BodyWeightEntry[];
 }
