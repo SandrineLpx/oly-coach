@@ -9,6 +9,7 @@ import {
   ReadinessCheck,
   PlannedSession,
   SessionType,
+  BodyWeightEntry,
 } from './types';
 import { 
   generateSessionExercises, 
@@ -16,7 +17,7 @@ import {
   generateTimeGuidance,
   getDaysSinceHeavySession,
 } from './training-logic';
-import { addDays, format, startOfWeek, endOfWeek, parseISO, isToday, isSameDay } from 'date-fns';
+import { addDays, format, startOfWeek, endOfWeek, parseISO, isToday, isSameDay, subDays } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 
 interface AppState {
@@ -40,6 +41,12 @@ interface AppState {
   // Training Log
   trainingLog: LoggedSession[];
   logSession: (session: LoggedSession) => void;
+  
+  // Body Weight
+  bodyWeightLog: BodyWeightEntry[];
+  logBodyWeight: (entry: Omit<BodyWeightEntry, 'id'>) => void;
+  deleteBodyWeight: (id: string) => void;
+  getRecentWeights: (days: number) => BodyWeightEntry[];
   
   // Preferences
   preferences: Preferences;
