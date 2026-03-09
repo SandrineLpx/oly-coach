@@ -376,5 +376,18 @@ export function loadDemoData() {
   ];
   
   demoLogs.forEach(log => store.logSession(log));
+  
+  // Demo body weight entries (last 14 days)
+  const baseWeight = 78;
+  for (let i = 13; i >= 0; i--) {
+    const variation = (Math.random() - 0.5) * 1.2;
+    const trend = -0.03 * i; // slight downward trend
+    store.logBodyWeight({
+      weight: parseFloat((baseWeight + trend + variation).toFixed(1)),
+      unit: 'kg',
+      date: format(subDays(new Date(), i), 'yyyy-MM-dd'),
+    });
+  }
+  
   store.completeOnboarding();
 }
