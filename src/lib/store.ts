@@ -17,6 +17,7 @@ import {
   getDaysSinceHeavySession,
 } from './training-logic';
 import { addDays, format, startOfWeek, endOfWeek, parseISO, isToday, isSameDay } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AppState {
   // Onboarding
