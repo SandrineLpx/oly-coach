@@ -58,7 +58,7 @@ export default function Auth() {
             <Dumbbell className="w-8 h-8 text-primary" />
           </div>
           <h1 className="text-3xl font-display tracking-tight text-foreground">
-            OLY COACH
+            TRAIN SMART
           </h1>
           <p className="text-muted-foreground text-sm">
             {mode === 'signin' && 'Sign in to continue training'}
