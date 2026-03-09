@@ -1,18 +1,27 @@
 import { motion } from 'framer-motion';
-import { ClipboardList } from 'lucide-react';
+import { ClipboardList, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 import { SessionBadge } from '@/components/SessionBadge';
 import { useAppStore } from '@/lib/store';
 import { format, parseISO } from 'date-fns';
 
 export default function History() {
   const { trainingLog } = useAppStore();
+  const navigate = useNavigate();
   const sortedLogs = [...trainingLog].reverse();
 
   return (
     <div className="min-h-screen px-4 py-6 pb-24">
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-        <h1 className="text-2xl font-bold mb-2">Training History</h1>
-        <p className="text-muted-foreground">{trainingLog.length} sessions logged</p>
+      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-6 flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold mb-2">Training History</h1>
+          <p className="text-muted-foreground">{trainingLog.length} sessions logged</p>
+        </div>
+        <Button size="sm" variant="gold" onClick={() => navigate('/log')}>
+          <Plus className="w-4 h-4" />
+          Log Session
+        </Button>
       </motion.div>
 
       {trainingLog.length === 0 ? (
