@@ -14,8 +14,8 @@ const navItems = [
 export function BottomNav() {
   const location = useLocation();
 
-  // Don't show on onboarding
-  if (location.pathname.startsWith('/onboarding')) {
+  // Don't show on onboarding or auth pages
+  if (location.pathname.startsWith('/onboarding') || location.pathname.startsWith('/auth') || location.pathname.startsWith('/reset-password')) {
     return null;
   }
 
