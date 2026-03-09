@@ -13,7 +13,7 @@ export function AppShell({ children }: AppShellProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className={isOnboarding ? '' : 'pb-20'}>
+      <main className={isOnboarding || isAuth ? '' : 'pb-20'}>
         {children}
       </main>
       <BottomNav />
