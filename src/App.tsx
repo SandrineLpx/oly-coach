@@ -13,6 +13,7 @@ import CheckIn from "./pages/CheckIn";
 import LogSession from "./pages/LogSession";
 import PRs from "./pages/PRs";
 import History from "./pages/History";
+import BodyWeight from "./pages/BodyWeight";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
