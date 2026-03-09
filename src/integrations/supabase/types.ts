@@ -14,7 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      athlete_profiles: {
+        Row: {
+          cardio_preference: string | null
+          created_at: string
+          id: string
+          name: string
+          preferred_days: number[]
+          program_start_date: string | null
+          strava_connected: boolean
+          training_age: number
+          updated_at: string
+          user_id: string
+          weather_preference: string | null
+        }
+        Insert: {
+          cardio_preference?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          preferred_days?: number[]
+          program_start_date?: string | null
+          strava_connected?: boolean
+          training_age?: number
+          updated_at?: string
+          user_id: string
+          weather_preference?: string | null
+        }
+        Update: {
+          cardio_preference?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          preferred_days?: number[]
+          program_start_date?: string | null
+          strava_connected?: boolean
+          training_age?: number
+          updated_at?: string
+          user_id?: string
+          weather_preference?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
