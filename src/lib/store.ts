@@ -287,6 +287,7 @@ export const useAppStore = create<AppState>()(
         prs: [],
         currentPlan: null,
         trainingLog: [],
+        bodyWeightLog: [],
         preferences: defaultPreferences,
         todayReadiness: null,
       }),
