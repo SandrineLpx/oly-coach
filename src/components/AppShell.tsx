@@ -9,6 +9,7 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   const location = useLocation();
   const isOnboarding = location.pathname.startsWith('/onboarding');
+  const isAuth = location.pathname.startsWith('/auth') || location.pathname.startsWith('/reset-password');
 
   return (
     <div className="min-h-screen bg-background">
