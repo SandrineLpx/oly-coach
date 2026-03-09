@@ -17,6 +17,7 @@ import {
   getDaysSinceHeavySession,
 } from './training-logic';
 import { addDays, format, startOfWeek, endOfWeek, parseISO, isToday, isSameDay } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AppState {
   // Onboarding
@@ -93,7 +94,27 @@ export const useAppStore = create<AppState>()(
       preferences: defaultPreferences,
       todayReadiness: null,
 
-      setProfile: (profile) => set({ profile }),
+      setProfile: (profile) => {
+        set({ profile });
+        // Persist to database asynchronously
+        (async () => {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return;
+          const row = {
+            user_id: user.id,
+            name: profile.name,
+            training_age: profile.trainingAge,
+            preferred_days: profile.preferredDays,
+            program_start_date: profile.programStartDate,
+            strava_connected: profile.stravaConnected,
+            weather_preference: profile.weatherPreference,
+            cardio_preference: profile.cardioPreference,
+          };
+          await supabase
+            .from('athlete_profiles')
+            .upsert(row, { onConflict: 'user_id' });
+        })();
+      },
       
       addPR: (pr) => set((state) => {
         const existing = state.prs.find(
