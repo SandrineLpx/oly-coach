@@ -228,6 +228,42 @@ export const useAppStore = create<AppState>()(
       })),
       
       setReadiness: (check) => set({ todayReadiness: check }),
+
+      logBodyWeight: (entry) => {
+        const id = generateId();
+        const fullEntry: BodyWeightEntry = { ...entry, id };
+        set((state) => ({
+          bodyWeightLog: [...state.bodyWeightLog, fullEntry],
+        }));
+        // Persist to database
+        (async () => {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return;
+          await supabase.from('body_weight_logs').insert({
+            id,
+            user_id: user.id,
+            weight: entry.weight,
+            unit: entry.unit,
+            logged_at: entry.date,
+          });
+        })();
+      },
+
+      deleteBodyWeight: (id) => {
+        set((state) => ({
+          bodyWeightLog: state.bodyWeightLog.filter(e => e.id !== id),
+        }));
+        (async () => {
+          await supabase.from('body_weight_logs').delete().eq('id', id);
+        })();
+      },
+
+      getRecentWeights: (days) => {
+        const cutoff = subDays(new Date(), days);
+        return get().bodyWeightLog
+          .filter(e => parseISO(e.date) >= cutoff)
+          .sort((a, b) => a.date.localeCompare(b.date));
+      },
       
       getTodaySession: () => {
         const plan = get().currentPlan;
