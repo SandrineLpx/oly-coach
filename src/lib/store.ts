@@ -71,6 +71,7 @@ interface AppState {
   resetApp: () => void;
   deletePR: (id: string) => void;
   saveProgram: (parsed: any, startDate: string) => Promise<void>;
+  recordPRHistory: (entry: { lift_name: string; weight: number; unit: string; achieved_at: string }) => void;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 11);
