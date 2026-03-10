@@ -63,6 +63,7 @@ interface AppState {
   // Actions
   completeOnboarding: () => void;
   resetApp: () => void;
+  deletePR: (id: string) => void;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 11);
@@ -291,6 +292,10 @@ export const useAppStore = create<AppState>()(
         preferences: defaultPreferences,
         todayReadiness: null,
       }),
+
+      deletePR: (id) => set((state) => ({
+        prs: state.prs.filter(p => p.id !== id),
+      })),
     }),
     {
       name: 'train-smart-storage',
