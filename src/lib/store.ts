@@ -61,6 +61,11 @@ interface AppState {
   getTodaySession: () => PlannedSession | null;
   getRecentLog: (days: number) => LoggedSession[];
   
+  // Program
+  activeProgram: Program | null;
+  fetchActiveProgram: () => Promise<void>;
+  getCurrentProgramWeek: () => number | null;
+  
   // Actions
   completeOnboarding: () => void;
   resetApp: () => void;
