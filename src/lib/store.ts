@@ -303,6 +303,36 @@ export const useAppStore = create<AppState>()(
       deletePR: (id) => set((state) => ({
         prs: state.prs.filter(p => p.id !== id),
       })),
+
+      fetchActiveProgram: async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data: program } = await supabase
+          .from('programs')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('is_active', true)
+          .limit(1)
+          .maybeSingle();
+        if (!program) { set({ activeProgram: null }); return; }
+        const { data: sessions } = await supabase
+          .from('program_sessions')
+          .select('*, program_exercises(*)')
+          .eq('program_id', program.id)
+          .order('week_number')
+          .order('day_of_week');
+        set({ activeProgram: { ...program, program_sessions: sessions || [] } as Program });
+      },
+
+      getCurrentProgramWeek: () => {
+        const prog = get().activeProgram;
+        if (!prog) return null;
+        const start = new Date(prog.start_date);
+        const now = new Date();
+        const diffMs = now.getTime() - start.getTime();
+        const week = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1;
+        return Math.max(1, Math.min(week, prog.weeks));
+      },
     }),
     {
       name: 'train-smart-storage',
