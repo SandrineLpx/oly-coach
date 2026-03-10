@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Scale, RotateCcw, Trophy, LogOut, BookOpen } from 'lucide-react';
+import { User, Scale, RotateCcw, Trophy, LogOut, BookOpen, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/lib/store';
 import { useNavigate } from 'react-router-dom';
