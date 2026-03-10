@@ -1,5 +1,6 @@
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Scale, RotateCcw, Trophy, LogOut } from 'lucide-react';
+import { User, Scale, RotateCcw, Trophy, LogOut, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/lib/store';
 import { useNavigate } from 'react-router-dom';
@@ -7,8 +8,10 @@ import { useAuth } from '@/hooks/useAuth';
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { profile, preferences, updatePreferences, resetApp } = useAppStore();
+  const { profile, preferences, updatePreferences, resetApp, activeProgram, fetchActiveProgram, getCurrentProgramWeek } = useAppStore();
   const { signOut } = useAuth();
+
+  useEffect(() => { fetchActiveProgram(); }, []);
 
   const handleReset = () => {
     if (confirm('Reset all data? This cannot be undone.')) {
