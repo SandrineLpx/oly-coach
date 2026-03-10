@@ -90,7 +90,24 @@ export default function LogSession() {
     <div className="min-h-screen px-4 py-6 pb-24">
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
         <h1 className="text-2xl font-bold mb-2">Log Session</h1>
-        <p className="text-muted-foreground">{format(new Date(), 'EEEE, MMMM d')}</p>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className={cn("justify-start text-left font-normal gap-2")}>
+              <CalendarIcon className="h-4 w-4" />
+              {format(sessionDate, 'EEEE, MMMM d')}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={sessionDate}
+              onSelect={(d) => d && setSessionDate(d)}
+              disabled={(date) => date > new Date()}
+              initialFocus
+              className="p-3 pointer-events-auto"
+            />
+          </PopoverContent>
+        </Popover>
       </motion.div>
 
       <div className="space-y-6">
