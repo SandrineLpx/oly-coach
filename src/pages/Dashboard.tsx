@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
   PlayCircle, Calendar, ChevronRight, Clock,
-  TrendingUp, Dumbbell, Flame, AlertTriangle
+  TrendingUp, Dumbbell, Flame, AlertTriangle, Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SessionBadge } from '@/components/SessionBadge';
@@ -65,14 +65,19 @@ export default function Dashboard() {
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-6"
+        className="mb-6 flex items-start justify-between"
       >
-        <p className="text-muted-foreground text-sm">
-          {format(new Date(), 'EEEE, MMM d')}
-        </p>
-        <h1 className="text-2xl font-bold mt-1">
-          Hey, <span className="text-gradient-gold">{profile?.name || 'Athlete'}</span>
-        </h1>
+        <div>
+          <p className="text-muted-foreground text-sm">
+            {format(new Date(), 'EEEE, MMM d')}
+          </p>
+          <h1 className="text-2xl font-bold mt-1">
+            Hey, <span className="text-gradient-gold">{profile?.name || 'Athlete'}</span>
+          </h1>
+        </div>
+        <button onClick={() => navigate('/settings')} className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-card transition-colors">
+          <Settings className="w-5 h-5" />
+        </button>
       </motion.div>
 
       <motion.div
