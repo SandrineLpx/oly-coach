@@ -292,6 +292,10 @@ export const useAppStore = create<AppState>()(
         preferences: defaultPreferences,
         todayReadiness: null,
       }),
+
+      deletePR: (id) => set((state) => ({
+        prs: state.prs.filter(p => p.id !== id),
+      })),
     }),
     {
       name: 'train-smart-storage',
