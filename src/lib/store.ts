@@ -10,6 +10,7 @@ import {
   PlannedSession,
   SessionType,
   BodyWeightEntry,
+  Program,
 } from './types';
 import { 
   generateSessionExercises, 
