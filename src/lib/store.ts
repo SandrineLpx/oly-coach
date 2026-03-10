@@ -374,6 +374,20 @@ export const useAppStore = create<AppState>()(
         await get().fetchActiveProgram();
       },
 
+      recordPRHistory: (entry) => {
+        (async () => {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return;
+          await supabase.from('pr_history').insert({
+            user_id: user.id,
+            lift_name: entry.lift_name,
+            weight: entry.weight,
+            unit: entry.unit,
+            achieved_at: entry.achieved_at,
+          });
+        })();
+      },
+
       fetchActiveProgram: async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
