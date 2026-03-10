@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
   PlayCircle, Calendar, ChevronRight, Clock,
-  TrendingUp, Dumbbell, Flame, AlertTriangle
+  TrendingUp, Dumbbell, Flame, AlertTriangle, Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SessionBadge } from '@/components/SessionBadge';
