@@ -16,6 +16,7 @@ import PRs from "./pages/PRs";
 import History from "./pages/History";
 import BodyWeight from "./pages/BodyWeight";
 import Settings from "./pages/Settings";
+import ImportProgram from "./pages/ImportProgram";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
@@ -73,6 +74,7 @@ function AppRoutes() {
         <Route path="/weight" element={<ProtectedRoute><BodyWeight /></ProtectedRoute>} />
         <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/import-program" element={<ProtectedRoute><ImportProgram /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppShell>

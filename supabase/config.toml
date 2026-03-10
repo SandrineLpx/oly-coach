@@ -1,1 +1,4 @@
 project_id = "wmjjugsslcytmsryltkx"
+
+[functions.parse-program]
+verify_jwt = false

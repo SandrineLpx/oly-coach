@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Scale, RotateCcw, Trophy, LogOut, BookOpen } from 'lucide-react';
+import { User, Scale, RotateCcw, Trophy, LogOut, BookOpen, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/lib/store';
 import { useNavigate } from 'react-router-dom';
@@ -46,6 +46,14 @@ export default function Settings() {
           <div className="flex-1">
             <h3 className="font-semibold">Manage PRs</h3>
             <p className="text-xs text-muted-foreground">Add, edit, or delete personal records</p>
+          </div>
+        </button>
+
+        <button onClick={() => navigate('/import-program')} className="w-full bg-card rounded-xl p-4 border border-border flex items-center gap-3 text-left hover:border-primary/50 transition-colors">
+          <Upload className="w-5 h-5 text-primary" />
+          <div className="flex-1">
+            <h3 className="font-semibold">Import Program</h3>
+            <p className="text-xs text-muted-foreground">Upload or paste a coach's program (Excel, text)</p>
           </div>
         </button>
 

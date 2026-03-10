@@ -70,6 +70,7 @@ interface AppState {
   completeOnboarding: () => void;
   resetApp: () => void;
   deletePR: (id: string) => void;
+  saveProgram: (parsed: any, startDate: string) => Promise<void>;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 11);
@@ -303,6 +304,74 @@ export const useAppStore = create<AppState>()(
       deletePR: (id) => set((state) => ({
         prs: state.prs.filter(p => p.id !== id),
       })),
+
+      saveProgram: async (parsed: any, startDate: string) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+
+        // Deactivate existing active programs
+        await supabase
+          .from('programs')
+          .update({ is_active: false })
+          .eq('user_id', user.id)
+          .eq('is_active', true);
+
+        // Insert program
+        const { data: program, error: progErr } = await supabase
+          .from('programs')
+          .insert({
+            user_id: user.id,
+            name: parsed.name,
+            description: parsed.description || null,
+            weeks: parsed.weeks,
+            start_date: startDate,
+            is_active: true,
+          })
+          .select()
+          .single();
+
+        if (progErr || !program) throw progErr || new Error('Failed to create program');
+
+        // Insert sessions and exercises
+        for (const session of parsed.sessions) {
+          const { data: sess, error: sessErr } = await supabase
+            .from('program_sessions')
+            .insert({
+              program_id: program.id,
+              week_number: session.week_number,
+              day_of_week: session.day_of_week,
+              session_type: session.session_type || 'T',
+              name: session.name || null,
+              notes: session.notes || null,
+              order_index: session.week_number * 10 + session.day_of_week,
+            })
+            .select()
+            .single();
+
+          if (sessErr || !sess) throw sessErr || new Error('Failed to create session');
+
+          if (session.exercises?.length > 0) {
+            const exRows = session.exercises.map((ex: any) => ({
+              session_id: sess.id,
+              name: ex.name,
+              sets: ex.sets ?? null,
+              reps: ex.reps ?? null,
+              percent_of_max: ex.percent_of_max ?? null,
+              notes: ex.notes ?? null,
+              order_index: ex.order_index ?? 0,
+            }));
+
+            const { error: exErr } = await supabase
+              .from('program_exercises')
+              .insert(exRows);
+
+            if (exErr) throw exErr;
+          }
+        }
+
+        // Refresh active program in store
+        await get().fetchActiveProgram();
+      },
 
       fetchActiveProgram: async () => {
         const { data: { user } } = await supabase.auth.getUser();
