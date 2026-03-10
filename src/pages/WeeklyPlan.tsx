@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Calendar, RefreshCw, CheckCircle, Clock } from 'lucide-react';
+import { Plus, Calendar, RefreshCw, CheckCircle, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SessionBadge } from '@/components/SessionBadge';
 import { useAppStore } from '@/lib/store';
 import { format, parseISO, isToday } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { ProgramWeekView } from '@/components/ProgramWeekView';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -16,11 +17,25 @@ export default function WeeklyPlan() {
     profile, 
     currentPlan, 
     generateWeeklyPlan,
-    markSessionComplete 
+    markSessionComplete,
+    activeProgram,
+    fetchActiveProgram,
+    getCurrentProgramWeek,
   } = useAppStore();
   
   const [selectedDays, setSelectedDays] = useState<number[]>(profile?.preferredDays || [1, 3, 5]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [viewWeek, setViewWeek] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetchActiveProgram();
+  }, []);
+
+  useEffect(() => {
+    if (activeProgram && viewWeek === null) {
+      setViewWeek(getCurrentProgramWeek());
+    }
+  }, [activeProgram]);
 
   const toggleDay = (day: number) => {
     setSelectedDays(prev => 
@@ -32,11 +47,64 @@ export default function WeeklyPlan() {
 
   const handleGeneratePlan = async () => {
     setIsGenerating(true);
-    // Simulate generation delay
     await new Promise(resolve => setTimeout(resolve, 1000));
     generateWeeklyPlan(selectedDays);
     setIsGenerating(false);
   };
+
+  // If there's an active program from the database, show it
+  if (activeProgram && viewWeek !== null) {
+    return (
+      <div className="min-h-screen px-4 py-6 pb-24">
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
+          <h1 className="text-2xl font-bold mb-1">{activeProgram.name}</h1>
+          <p className="text-muted-foreground text-sm">
+            {activeProgram.description || `${activeProgram.weeks}-week program`}
+          </p>
+        </motion.div>
+
+        {/* Week Navigator */}
+        <div className="flex items-center justify-between bg-card rounded-xl border border-border p-3 mb-4">
+          <button
+            onClick={() => setViewWeek(Math.max(1, viewWeek - 1))}
+            disabled={viewWeek <= 1}
+            className="p-1 text-muted-foreground disabled:opacity-30"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <div className="text-center">
+            <span className="font-semibold">Week {viewWeek}</span>
+            <span className="text-muted-foreground text-sm"> of {activeProgram.weeks}</span>
+            {viewWeek === getCurrentProgramWeek() && (
+              <span className="ml-2 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">Current</span>
+            )}
+          </div>
+          <button
+            onClick={() => setViewWeek(Math.min(activeProgram.weeks, viewWeek + 1))}
+            disabled={viewWeek >= activeProgram.weeks}
+            className="p-1 text-muted-foreground disabled:opacity-30"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="mb-6">
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary rounded-full transition-all"
+              style={{ width: `${((getCurrentProgramWeek() || 1) / activeProgram.weeks) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        <ProgramWeekView
+          sessions={activeProgram.program_sessions?.filter(s => s.week_number === viewWeek) || []}
+          onStartSession={() => navigate('/checkin')}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen px-4 py-6 pb-24">
@@ -70,7 +138,7 @@ export default function WeeklyPlan() {
             
             <div className="grid grid-cols-7 gap-2 mb-6">
               {DAYS.map((day, index) => {
-                const dayNum = index === 6 ? 0 : index + 1; // Convert to our 0=Sunday format
+                const dayNum = index === 6 ? 0 : index + 1;
                 return (
                   <button
                     key={day}
@@ -132,7 +200,6 @@ export default function WeeklyPlan() {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-4"
         >
-          {/* Plan Overview */}
           <div className="bg-card rounded-xl border border-border overflow-hidden">
             <div className="p-4 border-b border-border">
               <div className="flex items-center justify-between">
@@ -180,7 +247,6 @@ export default function WeeklyPlan() {
             </div>
           </div>
 
-          {/* Session Details */}
           <div className="space-y-3">
             {currentPlan.sessions
               .filter(s => s.type !== 'REST')
@@ -259,7 +325,6 @@ export default function WeeklyPlan() {
               })}
           </div>
 
-          {/* Action Buttons */}
           <div className="space-y-3 pt-4">
             <Button
               onClick={() => navigate('/checkin')}

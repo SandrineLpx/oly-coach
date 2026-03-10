@@ -103,6 +103,43 @@ export interface BodyWeightEntry {
   date: string; // ISO date string (YYYY-MM-DD)
 }
 
+// Program types (backend-driven)
+export interface ProgramExercise {
+  id: string;
+  session_id: string;
+  name: string;
+  sets: number | null;
+  reps: string | null;
+  weight: number | null;
+  percent_of_max: number | null;
+  notes: string | null;
+  order_index: number;
+}
+
+export interface ProgramSession {
+  id: string;
+  program_id: string;
+  week_number: number;
+  day_of_week: number;
+  session_type: string;
+  name: string | null;
+  notes: string | null;
+  order_index: number;
+  program_exercises?: ProgramExercise[];
+}
+
+export interface Program {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  start_date: string;
+  weeks: number;
+  is_active: boolean;
+  created_at: string;
+  program_sessions?: ProgramSession[];
+}
+
 // Demo data types
 export interface DemoData {
   profile: AthleteProfile;

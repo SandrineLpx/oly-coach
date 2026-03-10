@@ -83,6 +83,124 @@ export type Database = {
         }
         Relationships: []
       }
+      program_exercises: {
+        Row: {
+          id: string
+          name: string
+          notes: string | null
+          order_index: number
+          percent_of_max: number | null
+          reps: string | null
+          session_id: string
+          sets: number | null
+          weight: number | null
+        }
+        Insert: {
+          id?: string
+          name: string
+          notes?: string | null
+          order_index?: number
+          percent_of_max?: number | null
+          reps?: string | null
+          session_id: string
+          sets?: number | null
+          weight?: number | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          notes?: string | null
+          order_index?: number
+          percent_of_max?: number | null
+          reps?: string | null
+          session_id?: string
+          sets?: number | null
+          weight?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_exercises_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "program_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_sessions: {
+        Row: {
+          day_of_week: number
+          id: string
+          name: string | null
+          notes: string | null
+          order_index: number
+          program_id: string
+          session_type: string
+          week_number: number
+        }
+        Insert: {
+          day_of_week: number
+          id?: string
+          name?: string | null
+          notes?: string | null
+          order_index?: number
+          program_id: string
+          session_type?: string
+          week_number: number
+        }
+        Update: {
+          day_of_week?: number
+          id?: string
+          name?: string | null
+          notes?: string | null
+          order_index?: number
+          program_id?: string
+          session_type?: string
+          week_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_sessions_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      programs: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          start_date: string
+          user_id: string
+          weeks: number
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          start_date: string
+          user_id: string
+          weeks?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          start_date?: string
+          user_id?: string
+          weeks?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

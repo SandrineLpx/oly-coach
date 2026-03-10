@@ -1,5 +1,6 @@
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Scale, RotateCcw, Trophy, LogOut } from 'lucide-react';
+import { User, Scale, RotateCcw, Trophy, LogOut, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/lib/store';
 import { useNavigate } from 'react-router-dom';
@@ -7,8 +8,10 @@ import { useAuth } from '@/hooks/useAuth';
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { profile, preferences, updatePreferences, resetApp } = useAppStore();
+  const { profile, preferences, updatePreferences, resetApp, activeProgram, fetchActiveProgram, getCurrentProgramWeek } = useAppStore();
   const { signOut } = useAuth();
+
+  useEffect(() => { fetchActiveProgram(); }, []);
 
   const handleReset = () => {
     if (confirm('Reset all data? This cannot be undone.')) {
@@ -45,6 +48,22 @@ export default function Settings() {
             <p className="text-xs text-muted-foreground">Add, edit, or delete personal records</p>
           </div>
         </button>
+
+        {activeProgram && (
+          <div className="bg-card rounded-xl p-4 border border-border">
+            <div className="flex items-center gap-3 mb-3">
+              <BookOpen className="w-5 h-5 text-primary" />
+              <h3 className="font-semibold">Active Program</h3>
+            </div>
+            <p className="text-sm font-medium">{activeProgram.name}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Week {getCurrentProgramWeek()} of {activeProgram.weeks} · Started {activeProgram.start_date}
+            </p>
+            <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
+              <div className="h-full bg-primary rounded-full" style={{ width: `${((getCurrentProgramWeek() || 1) / activeProgram.weeks) * 100}%` }} />
+            </div>
+          </div>
+        )}
 
         <div className="bg-card rounded-xl p-4 border border-border">
           <div className="flex items-center gap-3 mb-4">
