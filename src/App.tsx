@@ -74,6 +74,7 @@ function AppRoutes() {
         <Route path="/weight" element={<ProtectedRoute><BodyWeight /></ProtectedRoute>} />
         <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/import-program" element={<ProtectedRoute><ImportProgram /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppShell>

@@ -49,6 +49,14 @@ export default function Settings() {
           </div>
         </button>
 
+        <button onClick={() => navigate('/import-program')} className="w-full bg-card rounded-xl p-4 border border-border flex items-center gap-3 text-left hover:border-primary/50 transition-colors">
+          <Upload className="w-5 h-5 text-primary" />
+          <div className="flex-1">
+            <h3 className="font-semibold">Import Program</h3>
+            <p className="text-xs text-muted-foreground">Upload or paste a coach's program (Excel, text)</p>
+          </div>
+        </button>
+
         {activeProgram && (
           <div className="bg-card rounded-xl p-4 border border-border">
             <div className="flex items-center gap-3 mb-3">
