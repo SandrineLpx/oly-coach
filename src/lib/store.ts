@@ -70,6 +70,7 @@ interface AppState {
   completeOnboarding: () => void;
   resetApp: () => void;
   deletePR: (id: string) => void;
+  saveProgram: (parsed: any, startDate: string) => Promise<void>;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 11);
