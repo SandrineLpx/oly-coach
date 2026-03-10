@@ -29,6 +29,7 @@ export default function LogSession() {
   const todaySession = getTodaySession();
   
   const [sessionType, setSessionType] = useState<SessionType>(todaySession?.type || 'S');
+  const [sessionDate, setSessionDate] = useState<Date>(new Date());
   const [rpe, setRpe] = useState([7]);
   const [sleep, setSleep] = useState<Sleep>('good');
   const [soreness, setSoreness] = useState([3]);
