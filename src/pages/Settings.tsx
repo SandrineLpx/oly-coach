@@ -49,6 +49,22 @@ export default function Settings() {
           </div>
         </button>
 
+        {activeProgram && (
+          <div className="bg-card rounded-xl p-4 border border-border">
+            <div className="flex items-center gap-3 mb-3">
+              <BookOpen className="w-5 h-5 text-primary" />
+              <h3 className="font-semibold">Active Program</h3>
+            </div>
+            <p className="text-sm font-medium">{activeProgram.name}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Week {getCurrentProgramWeek()} of {activeProgram.weeks} · Started {activeProgram.start_date}
+            </p>
+            <div className="mt-2 h-1.5 bg-muted rounded-full overflow-hidden">
+              <div className="h-full bg-primary rounded-full" style={{ width: `${((getCurrentProgramWeek() || 1) / activeProgram.weeks) * 100}%` }} />
+            </div>
+          </div>
+        )}
+
         <div className="bg-card rounded-xl p-4 border border-border">
           <div className="flex items-center gap-3 mb-4">
             <Scale className="w-5 h-5 text-primary" />
