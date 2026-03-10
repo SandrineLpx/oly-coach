@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Trophy, Plus, Pencil, Trash2, CalendarIcon } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { format, parseISO } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -8,6 +8,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import type { PR } from '@/lib/types';
 
 function PRForm({ pr, onSave, onClose }: { pr?: PR; onSave: (data: Omit<PR, 'id'> & { id?: string }) => void; onClose: () => void }) {
