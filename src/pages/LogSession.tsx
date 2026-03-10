@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, Sparkles } from 'lucide-react';
+import { CalendarIcon, CheckCircle, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { SessionBadge } from '@/components/SessionBadge';
 import { useAppStore } from '@/lib/store';
 import { Sleep, LoggedSession, SessionType } from '@/lib/types';
@@ -27,6 +29,7 @@ export default function LogSession() {
   const todaySession = getTodaySession();
   
   const [sessionType, setSessionType] = useState<SessionType>(todaySession?.type || 'S');
+  const [sessionDate, setSessionDate] = useState<Date>(new Date());
   const [rpe, setRpe] = useState([7]);
   const [sleep, setSleep] = useState<Sleep>('good');
   const [soreness, setSoreness] = useState([3]);
@@ -37,7 +40,7 @@ export default function LogSession() {
   const handleSubmit = () => {
     const log: LoggedSession = {
       id: Math.random().toString(36).substring(2, 11),
-      date: format(new Date(), 'yyyy-MM-dd'),
+      date: format(sessionDate, 'yyyy-MM-dd'),
       sessionType,
       plannedSessionId: todaySession?.id,
       exercises: todaySession?.exercises || [],
@@ -87,7 +90,24 @@ export default function LogSession() {
     <div className="min-h-screen px-4 py-6 pb-24">
       <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
         <h1 className="text-2xl font-bold mb-2">Log Session</h1>
-        <p className="text-muted-foreground">{format(new Date(), 'EEEE, MMMM d')}</p>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" className={cn("justify-start text-left font-normal gap-2")}>
+              <CalendarIcon className="h-4 w-4" />
+              {format(sessionDate, 'EEEE, MMMM d')}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-auto p-0" align="start">
+            <Calendar
+              mode="single"
+              selected={sessionDate}
+              onSelect={(d) => d && setSessionDate(d)}
+              disabled={(date) => date > new Date()}
+              initialFocus
+              className="p-3 pointer-events-auto"
+            />
+          </PopoverContent>
+        </Popover>
       </motion.div>
 
       <div className="space-y-6">
