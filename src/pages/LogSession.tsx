@@ -40,7 +40,7 @@ export default function LogSession() {
   const handleSubmit = () => {
     const log: LoggedSession = {
       id: Math.random().toString(36).substring(2, 11),
-      date: format(new Date(), 'yyyy-MM-dd'),
+      date: format(sessionDate, 'yyyy-MM-dd'),
       sessionType,
       plannedSessionId: todaySession?.id,
       exercises: todaySession?.exercises || [],
