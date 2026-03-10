@@ -108,6 +108,7 @@ export const useAppStore = create<AppState>()(
       bodyWeightLog: [],
       preferences: defaultPreferences,
       todayReadiness: null,
+      activeProgram: null,
 
       setProfile: (profile) => {
         set({ profile });
