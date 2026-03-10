@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowRight, Bed, Gauge, Zap, AlertTriangle, 
-  ChevronDown, CheckCircle, PlayCircle 
+  ChevronDown, CheckCircle, PlayCircle, Dumbbell, BookOpen
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -14,9 +14,10 @@ import {
   calculateReadiness, 
   shouldDowngradeSession, 
   generateStopRules,
-  generateTimeGuidance
+  generateTimeGuidance,
+  generateSessionExercises,
 } from '@/lib/training-logic';
-import { Sleep, ReadinessCheck } from '@/lib/types';
+import { Sleep, ReadinessCheck, SessionType, ProgramSession } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 
@@ -26,54 +27,185 @@ const sleepOptions: { value: Sleep; label: string; icon: string }[] = [
   { value: 'bad', label: 'Poor', icon: '😵' },
 ];
 
+const SESSION_TYPE_LABELS: Record<string, string> = {
+  T: 'Technique',
+  S: 'Strength',
+  H: 'Heavy',
+  T2: 'Tech-Strength',
+  REST: 'Rest',
+};
+
 export default function CheckIn() {
   const navigate = useNavigate();
   const { 
     getTodaySession, 
     setReadiness,
     todayReadiness,
-    getRecentLog 
+    getRecentLog,
+    activeProgram,
+    fetchActiveProgram,
+    getCurrentProgramWeek,
   } = useAppStore();
   
-  const [step, setStep] = useState<'check' | 'plan'>('check');
+  const [step, setStep] = useState<'check' | 'plan' | 'rest-choice'>('check');
   const [sleep, setSleep] = useState<Sleep>('good');
   const [soreness, setSoreness] = useState([3]);
   const [energy, setEnergy] = useState([4]);
   const [showDetails, setShowDetails] = useState(false);
+  const [overrideSession, setOverrideSession] = useState<{
+    type: SessionType;
+    exercises: any[];
+    rationale: string;
+    stopRules: string[];
+    ifShortOnTime: string;
+    ifExtraTime: string;
+    name?: string;
+  } | null>(null);
 
   const todaySession = getTodaySession();
   const recentLogs = getRecentLog(2);
 
+  useEffect(() => { fetchActiveProgram(); }, []);
+
   useEffect(() => {
     if (todayReadiness) {
-      setStep('plan');
+      if (!todaySession || todaySession.type === 'REST') {
+        setStep('rest-choice');
+      } else {
+        setStep('plan');
+      }
     }
-  }, [todayReadiness]);
+  }, [todayReadiness, todaySession]);
 
-  if (!todaySession) {
+  // Get program sessions for current week (for "pick from program" option)
+  const currentWeek = getCurrentProgramWeek();
+  const programSessions: ProgramSession[] = activeProgram?.program_sessions?.filter(
+    s => s.week_number === currentWeek
+  ) || [];
+
+  const handlePickProgramSession = (ps: ProgramSession) => {
+    const exercises = (ps.program_exercises || []).map(ex => ({
+      name: ex.name,
+      sets: ex.sets?.toString() || undefined,
+      reps: ex.reps || undefined,
+      percentOfMax: ex.percent_of_max || undefined,
+      notes: ex.notes || undefined,
+    }));
+
+    setOverrideSession({
+      type: (ps.session_type as SessionType) || 'T',
+      exercises,
+      rationale: ps.notes || `${ps.name || SESSION_TYPE_LABELS[ps.session_type] || 'Training'} session from your program.`,
+      stopRules: generateStopRules((ps.session_type as SessionType) || 'T', 'good'),
+      ifShortOnTime: generateTimeGuidance((ps.session_type as SessionType) || 'T').short,
+      ifExtraTime: generateTimeGuidance((ps.session_type as SessionType) || 'T').extra,
+      name: ps.name || undefined,
+    });
+    setStep('plan');
+  };
+
+  const handlePickCustomSession = (type: SessionType) => {
+    const exercises = generateSessionExercises(type);
+    setOverrideSession({
+      type,
+      exercises,
+      rationale: 'Custom session on a rest day — listen to your body.',
+      stopRules: generateStopRules(type, 'good'),
+      ifShortOnTime: generateTimeGuidance(type).short,
+      ifExtraTime: generateTimeGuidance(type).extra,
+    });
+    setStep('plan');
+  };
+
+  // No plan at all
+  if (!todaySession && !overrideSession && step !== 'rest-choice') {
     return (
       <div className="min-h-screen px-4 py-6 pb-24 flex items-center justify-center">
         <div className="text-center">
           <p className="text-muted-foreground mb-4">No session planned for today</p>
-          <Button onClick={() => navigate('/plan')} variant="outline">
-            Create Weekly Plan
-          </Button>
+          <div className="flex flex-col gap-2">
+            <Button onClick={() => navigate('/plan')} variant="outline">
+              Create Weekly Plan
+            </Button>
+            <Button onClick={() => setStep('rest-choice')} variant="gold">
+              <Dumbbell className="w-4 h-4" /> Train Anyway
+            </Button>
+          </div>
         </div>
       </div>
     );
   }
 
-  if (todaySession.type === 'REST') {
+  // REST day — show choice screen instead of blocking
+  if ((todaySession?.type === 'REST' || !todaySession) && step !== 'plan' && step !== 'check') {
     return (
-      <div className="min-h-screen px-4 py-6 pb-24 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-20 h-20 rounded-xl bg-muted/20 flex items-center justify-center mb-4 mx-auto">
-            <Bed className="w-10 h-10 text-muted-foreground" />
+      <div className="min-h-screen px-4 py-6 pb-24">
+        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-6 text-center">
+          <div className="w-16 h-16 rounded-xl bg-muted/20 flex items-center justify-center mb-4 mx-auto">
+            <Bed className="w-8 h-8 text-muted-foreground" />
           </div>
           <h1 className="text-2xl font-bold mb-2">Rest Day</h1>
-          <p className="text-muted-foreground mb-6">Recovery is when you grow stronger</p>
-          <Button onClick={() => navigate('/')} variant="outline">
-            Back to Home
+          <p className="text-muted-foreground mb-6">Recovery is when you grow stronger — but if you want to train, go for it.</p>
+        </motion.div>
+
+        <div className="space-y-3">
+          {/* Pick from program */}
+          {programSessions.length > 0 && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+              <div className="bg-card rounded-xl border border-border p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <BookOpen className="w-5 h-5 text-primary" />
+                  <h3 className="font-semibold">From Your Program (Wk {currentWeek})</h3>
+                </div>
+                <div className="space-y-2">
+                  {programSessions.map(ps => (
+                    <button
+                      key={ps.id}
+                      onClick={() => handlePickProgramSession(ps)}
+                      className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary/50 transition-colors text-left"
+                    >
+                      <SessionBadge type={(ps.session_type as SessionType) || 'T'} size="sm" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">
+                          {ps.name || `${SESSION_TYPE_LABELS[ps.session_type] || ps.session_type} Session`}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {(ps.program_exercises?.length || 0)} exercises
+                        </p>
+                      </div>
+                      <ChevronDown className="w-4 h-4 text-muted-foreground -rotate-90" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Custom session */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+            <div className="bg-card rounded-xl border border-border p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Dumbbell className="w-5 h-5 text-primary" />
+                <h3 className="font-semibold">Custom Session</h3>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {(['T', 'S', 'H', 'T2'] as SessionType[]).map(type => (
+                  <button
+                    key={type}
+                    onClick={() => handlePickCustomSession(type)}
+                    className="p-3 rounded-xl border border-border hover:border-primary/50 transition-colors flex flex-col items-center gap-1"
+                  >
+                    <SessionBadge type={type} size="sm" />
+                    <span className="text-[10px] text-muted-foreground">{SESSION_TYPE_LABELS[type]}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Or just go home */}
+          <Button onClick={() => navigate('/')} variant="outline" className="w-full">
+            Skip — Enjoy Rest Day
           </Button>
         </div>
       </div>
@@ -89,7 +221,11 @@ export default function CheckIn() {
     };
     
     setReadiness(check);
-    setStep('plan');
+    if (todaySession?.type === 'REST' || !todaySession) {
+      setStep('rest-choice');
+    } else {
+      setStep('plan');
+    }
   };
 
   const readiness = todayReadiness ? calculateReadiness(todayReadiness) : null;
@@ -100,20 +236,22 @@ export default function CheckIn() {
     log.notes.toLowerCase().includes('bike')
   );
 
-  let finalSession = todaySession;
+  // Use override session if set (rest day training), otherwise today's planned session
+  const baseSession = overrideSession || todaySession!;
+  let finalSession = baseSession;
   let adjustmentReason: string | null = null;
 
-  if (readiness) {
+  if (readiness && !overrideSession) {
     const adjustment = shouldDowngradeSession(
-      todaySession.type, 
+      baseSession.type, 
       readiness, 
       recentCardio, 
       7
     );
     
-    if (adjustment.newType !== todaySession.type) {
+    if (adjustment.newType !== baseSession.type) {
       finalSession = { 
-        ...todaySession, 
+        ...baseSession, 
         type: adjustment.newType,
         stopRules: generateStopRules(adjustment.newType, readiness.level),
       };
@@ -241,7 +379,7 @@ export default function CheckIn() {
               <ArrowRight className="w-5 h-5" />
             </Button>
           </motion.div>
-        ) : (
+        ) : step === 'plan' ? (
           <motion.div
             key="plan"
             initial={{ opacity: 0, x: 50 }}
@@ -294,10 +432,14 @@ export default function CheckIn() {
                   <SessionBadge type={finalSession.type} size="lg" />
                   <div>
                     <p className="font-bold text-xl">
-                      {finalSession.type === 'T' && 'Technique Session'}
-                      {finalSession.type === 'S' && 'Strength Session'}
-                      {finalSession.type === 'H' && 'Heavy Session'}
-                      {finalSession.type === 'T2' && 'Tech-Strength Session'}
+                      {(overrideSession?.name) || (
+                        <>
+                          {finalSession.type === 'T' && 'Technique Session'}
+                          {finalSession.type === 'S' && 'Strength Session'}
+                          {finalSession.type === 'H' && 'Heavy Session'}
+                          {finalSession.type === 'T2' && 'Tech-Strength Session'}
+                        </>
+                      )}
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {finalSession.exercises.length} exercises planned
@@ -389,7 +531,7 @@ export default function CheckIn() {
               
               <div className="flex gap-3">
                 <Button
-                  onClick={() => setStep('check')}
+                  onClick={() => { setOverrideSession(null); setStep('check'); }}
                   variant="outline"
                   className="flex-1"
                 >
@@ -405,7 +547,7 @@ export default function CheckIn() {
               </div>
             </div>
           </motion.div>
-        )}
+        ) : null}
       </AnimatePresence>
     </div>
   );
