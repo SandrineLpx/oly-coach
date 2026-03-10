@@ -71,6 +71,7 @@ interface AppState {
   resetApp: () => void;
   deletePR: (id: string) => void;
   saveProgram: (parsed: any, startDate: string) => Promise<void>;
+  recordPRHistory: (entry: { lift_name: string; weight: number; unit: string; achieved_at: string }) => void;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 11);
@@ -371,6 +372,20 @@ export const useAppStore = create<AppState>()(
 
         // Refresh active program in store
         await get().fetchActiveProgram();
+      },
+
+      recordPRHistory: (entry) => {
+        (async () => {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return;
+          await supabase.from('pr_history').insert({
+            user_id: user.id,
+            lift_name: entry.lift_name,
+            weight: entry.weight,
+            unit: entry.unit,
+            achieved_at: entry.achieved_at,
+          });
+        })();
       },
 
       fetchActiveProgram: async () => {

@@ -83,6 +83,36 @@ export type Database = {
         }
         Relationships: []
       }
+      pr_history: {
+        Row: {
+          achieved_at: string
+          created_at: string
+          id: string
+          lift_name: string
+          unit: string
+          user_id: string
+          weight: number
+        }
+        Insert: {
+          achieved_at?: string
+          created_at?: string
+          id?: string
+          lift_name: string
+          unit?: string
+          user_id: string
+          weight: number
+        }
+        Update: {
+          achieved_at?: string
+          created_at?: string
+          id?: string
+          lift_name?: string
+          unit?: string
+          user_id?: string
+          weight?: number
+        }
+        Relationships: []
+      }
       program_exercises: {
         Row: {
           id: string
