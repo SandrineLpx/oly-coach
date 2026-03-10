@@ -63,6 +63,7 @@ interface AppState {
   // Actions
   completeOnboarding: () => void;
   resetApp: () => void;
+  deletePR: (id: string) => void;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 11);
