@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Calendar, RefreshCw, CheckCircle, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Calendar, RefreshCw, CheckCircle, Clock, ChevronLeft, ChevronRight, SkipForward, AlertTriangle, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SessionBadge } from '@/components/SessionBadge';
 import { useAppStore } from '@/lib/store';
@@ -13,11 +13,12 @@ const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function WeeklyPlan() {
   const navigate = useNavigate();
-  const { 
-    profile, 
-    currentPlan, 
+  const {
+    profile,
+    currentPlan,
     generateWeeklyPlan,
     markSessionComplete,
+    skipSession,
     activeProgram,
     fetchActiveProgram,
     getCurrentProgramWeek,
@@ -238,8 +239,14 @@ export default function WeeklyPlan() {
                       {format(parseISO(session.date), 'd')}
                     </span>
                     <SessionBadge type={session.type} size="sm" />
-                    {session.completed && (
+                    {(session.completed || session.status === 'completed') && (
                       <CheckCircle className="w-4 h-4 text-success mt-2" />
+                    )}
+                    {session.status === 'skipped' && (
+                      <SkipForward className="w-4 h-4 text-muted-foreground mt-2" />
+                    )}
+                    {session.status === 'moved' && (
+                      <span className="text-[8px] text-muted-foreground mt-1">moved</span>
                     )}
                   </div>
                 );
@@ -247,12 +254,44 @@ export default function WeeklyPlan() {
             </div>
           </div>
 
+          {/* Protection Rule Banner */}
+          {currentPlan.protectionRule && (
+            <div className="bg-warning/10 border border-warning/30 rounded-xl p-3 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground">{currentPlan.protectionRule}</p>
+            </div>
+          )}
+
           <div className="space-y-3">
             {currentPlan.sessions
-              .filter(s => s.type !== 'REST')
+              .filter(s => s.type !== 'REST' || s.cardioSuggestion)
               .map((session) => {
                 const isSessionToday = isToday(parseISO(session.date));
-                
+                const isSkipped = session.status === 'skipped';
+                const isMoved = session.status === 'moved';
+                const isCompleted = session.completed || session.status === 'completed';
+                const isInactive = isSkipped || isMoved;
+
+                // REST days with cardio suggestions
+                if (session.type === 'REST' && session.cardioSuggestion) {
+                  return (
+                    <motion.div
+                      key={session.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-card rounded-xl border border-border p-4"
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <Activity className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">
+                          {format(parseISO(session.date), 'EEE, MMM d')} — Rest Day
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{session.cardioSuggestion}</p>
+                    </motion.div>
+                  );
+                }
+
                 return (
                   <motion.div
                     key={session.id}
@@ -260,38 +299,61 @@ export default function WeeklyPlan() {
                     animate={{ opacity: 1, y: 0 }}
                     className={cn(
                       "bg-card rounded-xl border border-border p-4",
-                      isSessionToday && "border-primary/30 bg-primary/5"
+                      isSessionToday && !isInactive && "border-primary/30 bg-primary/5",
+                      isInactive && "opacity-50"
                     )}
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
                         <SessionBadge type={session.type} size="md" showLabel />
-                        {isSessionToday && (
+                        {isSessionToday && !isInactive && (
                           <div className="px-2 py-1 bg-primary/10 rounded text-xs font-bold text-primary">
                             Today
                           </div>
+                        )}
+                        {isSkipped && (
+                          <span className="text-xs text-muted-foreground italic">Skipped</span>
+                        )}
+                        {isMoved && (
+                          <span className="text-xs text-muted-foreground italic">Moved</span>
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">
                         {format(parseISO(session.date), 'EEE, MMM d')}
                       </span>
                     </div>
-                    
+
                     <p className="text-sm text-muted-foreground mb-3">
                       {session.rationale}
                     </p>
-                    
+
+                    {/* Carry-over indicator */}
+                    {session.carryOverExercises && session.carryOverExercises.length > 0 && (
+                      <div className="bg-primary/5 border border-primary/20 rounded-lg p-2 mb-3">
+                        <p className="text-xs text-primary font-medium">
+                          + {session.carryOverExercises.length} exercise{session.carryOverExercises.length > 1 ? 's' : ''} carried from skipped session
+                        </p>
+                      </div>
+                    )}
+
                     <div className="space-y-2">
                       <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                         Exercises ({session.exercises.length})
                       </h4>
                       <div className="space-y-1">
                         {session.exercises.slice(0, 3).map((exercise, i) => (
-                          <div key={i} className="flex items-center justify-between text-sm">
+                          <div key={i} className={cn(
+                            "flex items-center justify-between text-sm",
+                            exercise.isCarryOver && "border-l-2 border-primary/50 pl-2"
+                          )}>
                             <span>{exercise.name}</span>
-                            <span className="text-muted-foreground text-xs">
+                            <span className="text-muted-foreground text-xs text-right">
                               {exercise.sets && exercise.reps && `${exercise.sets}x${exercise.reps}`}
-                              {exercise.percentOfMax && ` @ ${exercise.percentOfMax}%`}
+                              {exercise.weightRange ? (
+                                <span className="block text-primary/80">{exercise.weightRange}</span>
+                              ) : exercise.percentOfMax ? (
+                                <span> @ {exercise.percentOfMax}%</span>
+                              ) : null}
                             </span>
                           </div>
                         ))}
@@ -302,8 +364,8 @@ export default function WeeklyPlan() {
                         )}
                       </div>
                     </div>
-                    
-                    {isSessionToday && (
+
+                    {isSessionToday && !isInactive && !isCompleted && (
                       <Button
                         onClick={() => navigate('/checkin')}
                         variant="gold"
@@ -313,8 +375,18 @@ export default function WeeklyPlan() {
                         Start Today's Session
                       </Button>
                     )}
-                    
-                    {session.completed && (
+
+                    {/* Skip button for future planned sessions */}
+                    {!isSessionToday && !isCompleted && !isInactive && (
+                      <button
+                        onClick={() => skipSession(session.id)}
+                        className="text-xs text-muted-foreground hover:text-foreground mt-3 flex items-center gap-1 transition-colors"
+                      >
+                        <SkipForward className="w-3 h-3" /> Skip this session
+                      </button>
+                    )}
+
+                    {isCompleted && (
                       <div className="flex items-center gap-2 mt-3 text-success text-sm">
                         <CheckCircle className="w-4 h-4" />
                         Completed

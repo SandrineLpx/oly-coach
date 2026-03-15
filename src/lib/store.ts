@@ -12,11 +12,17 @@ import {
   BodyWeightEntry,
   Program,
 } from './types';
-import { 
-  generateSessionExercises, 
-  generateStopRules, 
+import {
+  generateSessionExercises,
+  generateStopRules,
   generateTimeGuidance,
   getDaysSinceHeavySession,
+  resolveExerciseWeights,
+  shouldAddT2,
+  computeCarryOver,
+  generateProtectionRule,
+  generateCardioSuggestion,
+  computeTaperAdjustments,
 } from './training-logic';
 import { addDays, format, startOfWeek, endOfWeek, parseISO, isToday, isSameDay, subDays } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -38,6 +44,8 @@ interface AppState {
   currentPlan: WeeklyPlan | null;
   generateWeeklyPlan: (availableDays: number[]) => void;
   markSessionComplete: (sessionId: string) => void;
+  skipSession: (sessionId: string) => void;
+  moveSession: (sessionId: string, newDate: string) => void;
   
   // Training Log
   trainingLog: LoggedSession[];
@@ -77,19 +85,31 @@ interface AppState {
 const generateId = () => Math.random().toString(36).substring(2, 11);
 
 // Generate session type sequence based on available days
-function getSessionSequence(numDays: number, daysSinceHeavy: number): SessionType[] {
-  // Standard 3-day pattern: T-S-H or variations
-  if (numDays <= 2) {
-    return daysSinceHeavy > 5 ? ['S', 'H'] : ['T', 'S'];
+function getSessionSequence(
+  numDays: number,
+  daysSinceHeavy: number,
+  includeT2: boolean = true,
+): SessionType[] {
+  let sequence: SessionType[];
+
+  if (numDays <= 1) {
+    sequence = daysSinceHeavy >= 5 ? ['H'] : ['T'];
+  } else if (numDays === 2) {
+    sequence = daysSinceHeavy >= 5 ? ['S', 'H'] : ['T', 'S'];
+  } else if (numDays === 3) {
+    sequence = ['T', 'S', 'H'];
+  } else if (numDays === 4) {
+    sequence = includeT2 ? ['T', 'S', 'T2', 'H'] : ['T', 'S', 'S', 'H'];
+  } else {
+    sequence = includeT2 ? ['T', 'S', 'T2', 'S', 'H'] : ['T', 'S', 'S', 'S', 'H'];
   }
-  if (numDays === 3) {
-    return ['T', 'S', 'H'];
+
+  // Heavy work drought override: ensure H is in the sequence for 3+ days
+  if (daysSinceHeavy >= 5 && numDays >= 3 && !sequence.includes('H')) {
+    sequence[sequence.length - 1] = 'H';
   }
-  if (numDays === 4) {
-    return ['T', 'S', 'T2', 'H'];
-  }
-  // 5+ days
-  return ['T', 'S', 'T2', 'S', 'H'];
+
+  return sequence;
 }
 
 const defaultPreferences: Preferences = {
@@ -159,33 +179,74 @@ export const useAppStore = create<AppState>()(
         const today = new Date();
         const weekStart = startOfWeek(today, { weekStartsOn: 1 });
         const weekEnd = endOfWeek(today, { weekStartsOn: 1 });
-        
+
         const logs = get().trainingLog;
+        const prs = get().prs;
+        const profile = get().profile;
+        const preferences = get().preferences;
         const daysSinceHeavy = getDaysSinceHeavySession(logs);
-        const sessionTypes = getSessionSequence(availableDays.length, daysSinceHeavy);
-        
+
+        // Compute week number for periodization
+        let weekNumber = 1;
+        if (profile?.programStartDate) {
+          const start = new Date(profile.programStartDate);
+          weekNumber = Math.max(1, Math.floor((today.getTime() - start.getTime()) / (7 * 24 * 60 * 60 * 1000)) + 1);
+        }
+
+        // T2 intelligence: check if we should include T2
+        const recentLogs = get().getRecentLog(7);
+        const t2Decision = shouldAddT2(recentLogs, 'good', weekNumber);
+        const includeT2 = t2Decision.add;
+
+        const sessionTypes = getSessionSequence(availableDays.length, daysSinceHeavy, includeT2);
+
         const sessions: PlannedSession[] = availableDays.map((day, index) => {
           const sessionDate = addDays(weekStart, day === 0 ? 6 : day - 1);
-          const type = sessionTypes[index] || 'T';
-          const exercises = generateSessionExercises(type);
-          const timeGuidance = generateTimeGuidance(type);
-          
+          const dateStr = format(sessionDate, 'yyyy-MM-dd');
+          let type = sessionTypes[index] || 'T';
+
+          // Competition taper adjustments
+          if (profile?.competitionDate) {
+            const taper = computeTaperAdjustments(profile.competitionDate, dateStr, type);
+            if (taper?.overrideType) {
+              type = taper.overrideType;
+            }
+          }
+
+          let exercises = generateSessionExercises(type, false, weekNumber);
+
+          // Resolve weights from PRs
+          exercises = resolveExerciseWeights(exercises, prs, 'good', preferences.units);
+
+          const timeGuidance = generateTimeGuidance(type, exercises);
+
+          // Competition taper note
+          let rationale = getRationale(type, index, daysSinceHeavy);
+          if (profile?.competitionDate) {
+            const taper = computeTaperAdjustments(profile.competitionDate, dateStr, type);
+            if (taper) {
+              rationale = taper.note;
+            }
+          }
+
           return {
             id: generateId(),
-            date: format(sessionDate, 'yyyy-MM-dd'),
+            date: dateStr,
             dayOfWeek: day,
             type,
             exercises,
-            rationale: getRationale(type, index, daysSinceHeavy),
+            rationale,
             stopRules: generateStopRules(type, 'good'),
             ifShortOnTime: timeGuidance.short,
             ifExtraTime: timeGuidance.extra,
             completed: false,
+            status: 'planned' as const,
           };
         });
-        
-        // Fill in rest days
+
+        // Fill in rest days with cardio suggestions
         const allDays: PlannedSession[] = [];
+        let restDayIndex = 0;
         for (let d = 1; d <= 7; d++) {
           const dayNum = d === 7 ? 0 : d;
           const planned = sessions.find(s => s.dayOfWeek === dayNum);
@@ -193,6 +254,12 @@ export const useAppStore = create<AppState>()(
             allDays.push(planned);
           } else {
             const sessionDate = addDays(weekStart, d - 1);
+            const totalRestDays = 7 - availableDays.length;
+            const cardioSuggestion = profile?.cardioPreference
+              ? generateCardioSuggestion(profile.cardioPreference, restDayIndex, totalRestDays) || undefined
+              : undefined;
+            restDayIndex++;
+
             allDays.push({
               id: generateId(),
               date: format(sessionDate, 'yyyy-MM-dd'),
@@ -204,10 +271,15 @@ export const useAppStore = create<AppState>()(
               ifShortOnTime: '',
               ifExtraTime: 'Light mobility or easy walk if desired.',
               completed: false,
+              status: 'planned' as const,
+              cardioSuggestion,
             });
           }
         }
-        
+
+        // Generate protection rule
+        const protectionRule = generateProtectionRule(allDays) || undefined;
+
         set({
           currentPlan: {
             id: generateId(),
@@ -216,6 +288,7 @@ export const useAppStore = create<AppState>()(
             sessions: allDays,
             availableDays,
             generatedAt: new Date().toISOString(),
+            protectionRule,
           },
         });
       },
@@ -224,10 +297,62 @@ export const useAppStore = create<AppState>()(
         currentPlan: state.currentPlan ? {
           ...state.currentPlan,
           sessions: state.currentPlan.sessions.map(s =>
-            s.id === sessionId ? { ...s, completed: true } : s
+            s.id === sessionId ? { ...s, completed: true, status: 'completed' as const } : s
           ),
         } : null,
       })),
+
+      skipSession: (sessionId) => set((state) => {
+        if (!state.currentPlan) return state;
+
+        const skipped = state.currentPlan.sessions.find(s => s.id === sessionId);
+        if (!skipped || skipped.type === 'REST') return state;
+
+        // Compute carry-over exercises from the skipped session
+        const carryOverExercises = computeCarryOver(skipped.exercises);
+
+        // Find next planned (non-completed, non-skipped, non-REST) session
+        const skippedIdx = state.currentPlan.sessions.findIndex(s => s.id === sessionId);
+        const nextSession = state.currentPlan.sessions.find((s, idx) =>
+          idx > skippedIdx && s.type !== 'REST' && s.status !== 'completed' && s.status !== 'skipped'
+        );
+
+        return {
+          currentPlan: {
+            ...state.currentPlan,
+            sessions: state.currentPlan.sessions.map(s => {
+              if (s.id === sessionId) {
+                return { ...s, status: 'skipped' as const };
+              }
+              if (nextSession && s.id === nextSession.id && carryOverExercises.length > 0) {
+                // Add carry-over exercises and trim accessories to compensate
+                const trimmed = s.exercises.slice(0, -carryOverExercises.length);
+                return {
+                  ...s,
+                  carryOverExercises,
+                  exercises: [...trimmed, ...carryOverExercises],
+                };
+              }
+              return s;
+            }),
+          },
+        };
+      }),
+
+      moveSession: (sessionId, newDate) => set((state) => {
+        if (!state.currentPlan) return state;
+        return {
+          currentPlan: {
+            ...state.currentPlan,
+            sessions: state.currentPlan.sessions.map(s => {
+              if (s.id === sessionId) {
+                return { ...s, status: 'moved' as const, date: newDate };
+              }
+              return s;
+            }),
+          },
+        };
+      }),
       
       logSession: (session) => set((state) => ({
         trainingLog: [...state.trainingLog, session],

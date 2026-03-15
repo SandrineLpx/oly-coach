@@ -1,15 +1,16 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { 
+import {
   PlayCircle, Calendar, ChevronRight, Clock,
-  TrendingUp, Dumbbell, Flame, AlertTriangle, Settings
+  TrendingUp, Dumbbell, Flame, AlertTriangle, Settings, CloudSun
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SessionBadge } from '@/components/SessionBadge';
 import { ReadinessIndicator } from '@/components/ReadinessIndicator';
 import { useAppStore, loadDemoData } from '@/lib/store';
 import { calculateReadiness, getDaysSinceHeavySession } from '@/lib/training-logic';
+import { fetchWeeklyForecast, DailyForecast, formatForecastShort, getWeatherDescription } from '@/lib/weather';
 import { format, isToday, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -25,11 +26,24 @@ export default function Dashboard() {
     getTodaySession 
   } = useAppStore();
 
+  const [weather, setWeather] = useState<DailyForecast[]>([]);
+
   useEffect(() => {
     if (!onboardingComplete) {
       loadDemoData();
     }
   }, [onboardingComplete]);
+
+  // Fetch weather if location is set
+  useEffect(() => {
+    if (profile?.location) {
+      fetchWeeklyForecast(
+        profile.location.lat,
+        profile.location.lon,
+        profile.outdoorThresholds,
+      ).then(setWeather).catch(() => {});
+    }
+  }, [profile?.location?.lat, profile?.location?.lon]);
 
   const todaySession = getTodaySession();
   const recentLogs = trainingLog.slice(-5).reverse();
@@ -243,6 +257,37 @@ export default function Dashboard() {
           </motion.div>
         )}
 
+        {/* Weather Widget */}
+        {weather.length > 0 && (
+          <motion.div variants={item}>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                Weather
+              </h2>
+              <CloudSun className="w-4 h-4 text-muted-foreground" />
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {weather.slice(0, 3).map((day) => (
+                <div key={day.date} className={cn(
+                  "bg-card rounded-xl p-3 border border-border text-center",
+                  day.outdoorSuitable && "border-success/30"
+                )}>
+                  <p className="text-[10px] text-muted-foreground">
+                    {format(parseISO(day.date), 'EEE')}
+                  </p>
+                  <p className="text-lg font-bold mt-1">{day.tempHighC}°</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {getWeatherDescription(day.weatherCode)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {day.precipitationProbability}% rain
+                  </p>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
         {/* Recent Activity */}
         {recentLogs.length > 0 && (
           <motion.div variants={item}>
@@ -314,6 +359,32 @@ export default function Dashboard() {
           </motion.div>
         )}
 
+        {/* Competition taper notice */}
+        {profile?.competitionDate && (() => {
+          const daysUntil = Math.round((new Date(profile.competitionDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+          if (daysUntil >= 0 && daysUntil <= 10) {
+            return (
+              <motion.div variants={item}>
+                <div className="bg-primary/10 border border-primary/30 rounded-xl p-4 flex items-start gap-3">
+                  <Flame className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-primary">
+                      {daysUntil === 0 ? 'Competition Day!' : `${daysUntil} days to competition`}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {daysUntil > 4 ? 'Taper phase — volume reduced ~30%.' :
+                       daysUntil > 1 ? 'Light technique only — stay sharp, stay fresh.' :
+                       daysUntil === 1 ? 'Mini technique + mobility tomorrow. Rest up!' :
+                       'Give it everything today!'}
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          }
+          return null;
+        })()}
+
         {/* Warning if heavy day needed */}
         {daysSinceHeavy >= 5 && todaySession?.type !== 'H' && (
           <motion.div variants={item}>
@@ -322,7 +393,7 @@ export default function Dashboard() {
               <div>
                 <p className="text-sm font-semibold text-warning">Time for Heavy Work</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  It's been {daysSinceHeavy} days since your last heavy session. 
+                  It's been {daysSinceHeavy} days since your last heavy session.
                   Consider prioritizing one this week.
                 </p>
               </div>

@@ -13,6 +13,13 @@ export interface AthleteProfile {
   stravaConnected: boolean;
   weatherPreference: 'indoor' | 'outdoor' | 'both';
   cardioPreference: 'running' | 'rowing' | 'cycling' | 'none';
+  competitionDate?: string; // ISO date string, triggers taper logic
+  location?: { lat: number; lon: number };
+  outdoorThresholds?: {
+    maxPrecipPct: number;
+    minTempC: number;
+    maxWindKmh: number;
+  };
 }
 
 export interface PR {
@@ -30,8 +37,10 @@ export interface Exercise {
   reps?: string;
   percentOfMax?: number;
   weight?: number;
+  weightRange?: string; // e.g. "56-60kg (75-80% of 75kg PR)"
   notes?: string;
   isPR?: boolean;
+  isCarryOver?: boolean; // carried from a skipped session
 }
 
 export interface PlannedSession {
@@ -47,6 +56,8 @@ export interface PlannedSession {
   ifExtraTime: string;
   cardioSuggestion?: string;
   completed: boolean;
+  status?: 'planned' | 'completed' | 'moved' | 'skipped';
+  carryOverExercises?: Exercise[];
 }
 
 export interface WeeklyPlan {
@@ -56,6 +67,7 @@ export interface WeeklyPlan {
   sessions: PlannedSession[];
   availableDays: number[];
   generatedAt: string;
+  protectionRule?: string;
 }
 
 export interface ReadinessCheck {

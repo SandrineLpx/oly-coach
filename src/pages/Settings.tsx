@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Scale, RotateCcw, Trophy, LogOut, BookOpen, Upload } from 'lucide-react';
+import { User, Scale, RotateCcw, Trophy, LogOut, BookOpen, Upload, Target } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/lib/store';
 import { useNavigate } from 'react-router-dom';
@@ -8,7 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { profile, preferences, updatePreferences, resetApp, activeProgram, fetchActiveProgram, getCurrentProgramWeek } = useAppStore();
+  const { profile, setProfile, preferences, updatePreferences, resetApp, activeProgram, fetchActiveProgram, getCurrentProgramWeek } = useAppStore();
   const { signOut } = useAuth();
 
   useEffect(() => { fetchActiveProgram(); }, []);
@@ -72,6 +74,46 @@ export default function Settings() {
             </div>
           </div>
         )}
+
+        {/* Competition Date */}
+        <div className="bg-card rounded-xl p-4 border border-border">
+          <div className="flex items-center gap-3 mb-3">
+            <Target className="w-5 h-5 text-primary" />
+            <h3 className="font-semibold">Competition Date</h3>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            Set a competition date to activate automatic taper logic (volume reduction D-10 to D-1).
+          </p>
+          <div className="flex items-center gap-2">
+            <Input
+              type="date"
+              value={profile?.competitionDate || ''}
+              onChange={(e) => {
+                if (profile) {
+                  setProfile({ ...profile, competitionDate: e.target.value || undefined });
+                }
+              }}
+              className="h-10 bg-background border-border"
+            />
+            {profile?.competitionDate && (
+              <button
+                onClick={() => {
+                  if (profile) setProfile({ ...profile, competitionDate: undefined });
+                }}
+                className="text-xs text-destructive hover:underline whitespace-nowrap"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {profile?.competitionDate && (() => {
+            const daysUntil = Math.round((new Date(profile.competitionDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+            if (daysUntil >= 0) {
+              return <p className="text-xs text-primary mt-2">{daysUntil} days until competition</p>;
+            }
+            return <p className="text-xs text-muted-foreground mt-2">Competition date has passed</p>;
+          })()}
+        </div>
 
         <div className="bg-card rounded-xl p-4 border border-border">
           <div className="flex items-center gap-3 mb-4">

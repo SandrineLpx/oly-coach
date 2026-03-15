@@ -10,16 +10,19 @@ import { Slider } from '@/components/ui/slider';
 import { SessionBadge } from '@/components/SessionBadge';
 import { ReadinessIndicator } from '@/components/ReadinessIndicator';
 import { useAppStore } from '@/lib/store';
-import { 
-  calculateReadiness, 
-  shouldDowngradeSession, 
+import {
+  calculateReadiness,
+  adjustSessionType,
   generateStopRules,
   generateTimeGuidance,
   generateSessionExercises,
+  getDaysSinceHeavySession,
+  resolveExerciseWeights,
+  shouldAddT2,
 } from '@/lib/training-logic';
 import { Sleep, ReadinessCheck, SessionType, ProgramSession } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
 const sleepOptions: { value: Sleep; label: string; icon: string }[] = [
   { value: 'good', label: 'Good', icon: '😴' },
@@ -37,14 +40,19 @@ const SESSION_TYPE_LABELS: Record<string, string> = {
 
 export default function CheckIn() {
   const navigate = useNavigate();
-  const { 
-    getTodaySession, 
+  const {
+    getTodaySession,
     setReadiness,
     todayReadiness,
     getRecentLog,
     activeProgram,
     fetchActiveProgram,
     getCurrentProgramWeek,
+    prs,
+    preferences,
+    profile,
+    trainingLog,
+    currentPlan,
   } = useAppStore();
   
   const [step, setStep] = useState<'check' | 'plan' | 'rest-choice'>('check');
@@ -105,17 +113,27 @@ export default function CheckIn() {
   };
 
   const handlePickCustomSession = (type: SessionType) => {
-    const exercises = generateSessionExercises(type);
+    let exercises = generateSessionExercises(type);
+    exercises = resolveExerciseWeights(exercises, prs, 'good', preferences.units);
+    const timeGuidance = generateTimeGuidance(type, exercises);
     setOverrideSession({
       type,
       exercises,
       rationale: 'Custom session on a rest day — listen to your body.',
       stopRules: generateStopRules(type, 'good'),
-      ifShortOnTime: generateTimeGuidance(type).short,
-      ifExtraTime: generateTimeGuidance(type).extra,
+      ifShortOnTime: timeGuidance.short,
+      ifExtraTime: timeGuidance.extra,
     });
     setStep('plan');
   };
+
+  // Pull-forward: offer to pull the next planned session to today
+  const nextPlannedSession = currentPlan?.sessions.find(s =>
+    s.type !== 'REST' && s.status !== 'completed' && s.status !== 'skipped' && s.status !== 'moved'
+    && new Date(s.date) > new Date()
+  );
+
+  const daysSinceHeavy = getDaysSinceHeavySession(trainingLog);
 
   // No plan at all
   if (!todaySession && !overrideSession && step !== 'rest-choice') {
@@ -181,6 +199,28 @@ export default function CheckIn() {
             </motion.div>
           )}
 
+          {/* Pull forward next session */}
+          {nextPlannedSession && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+              <button
+                onClick={() => {
+                  handlePickCustomSession(nextPlannedSession.type);
+                  // Mark original as moved
+                  useAppStore.getState().moveSession(nextPlannedSession.id, format(new Date(), 'yyyy-MM-dd'));
+                }}
+                className="w-full bg-card rounded-xl border border-primary/30 p-4 text-left hover:border-primary/60 transition-colors"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <ArrowRight className="w-4 h-4 text-primary" />
+                  <h3 className="font-semibold text-sm">Pull Forward Next Session</h3>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Move {format(parseISO(nextPlannedSession.date), 'EEEE')}'s {SESSION_TYPE_LABELS[nextPlannedSession.type]} session to today
+                </p>
+              </button>
+            </motion.div>
+          )}
+
           {/* Custom session */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <div className="bg-card rounded-xl border border-border p-4">
@@ -242,24 +282,29 @@ export default function CheckIn() {
   let adjustmentReason: string | null = null;
 
   if (readiness && !overrideSession) {
-    const adjustment = shouldDowngradeSession(
-      baseSession.type, 
-      readiness, 
-      recentCardio, 
-      7
+    const adjustment = adjustSessionType(
+      baseSession.type,
+      readiness,
+      recentCardio,
+      daysSinceHeavy,
+      profile?.competitionDate,
+      baseSession.date || format(new Date(), 'yyyy-MM-dd'),
     );
-    
+
     if (adjustment.newType !== baseSession.type) {
-      finalSession = { 
-        ...baseSession, 
+      let newExercises = generateSessionExercises(adjustment.newType);
+      newExercises = resolveExerciseWeights(newExercises, prs, readiness.level, preferences.units);
+      const timeGuidance = generateTimeGuidance(adjustment.newType, newExercises);
+
+      finalSession = {
+        ...baseSession,
         type: adjustment.newType,
+        exercises: newExercises,
         stopRules: generateStopRules(adjustment.newType, readiness.level),
+        ifShortOnTime: timeGuidance.short,
+        ifExtraTime: timeGuidance.extra,
       };
       adjustmentReason = adjustment.reason;
-      
-      const timeGuidance = generateTimeGuidance(adjustment.newType);
-      finalSession.ifShortOnTime = timeGuidance.short;
-      finalSession.ifExtraTime = timeGuidance.extra;
     }
   }
 
@@ -471,15 +516,25 @@ export default function CheckIn() {
                   >
                     <div className="p-4 space-y-3">
                       {finalSession.exercises.map((exercise, i) => (
-                        <div key={i} className="flex items-center justify-between text-sm">
-                          <span className="font-medium">{exercise.name}</span>
+                        <div key={i} className={cn(
+                          "flex items-center justify-between text-sm",
+                          exercise.isCarryOver && "border-l-2 border-primary/50 pl-2"
+                        )}>
+                          <div>
+                            <span className="font-medium">{exercise.name}</span>
+                            {exercise.isCarryOver && (
+                              <span className="text-[10px] text-primary ml-1">carry-over</span>
+                            )}
+                          </div>
                           <div className="text-right">
                             {exercise.sets && exercise.reps && (
                               <div className="text-muted-foreground">{exercise.sets}x{exercise.reps}</div>
                             )}
-                            {exercise.percentOfMax && (
+                            {exercise.weightRange ? (
+                              <div className="text-xs text-primary/80">{exercise.weightRange}</div>
+                            ) : exercise.percentOfMax ? (
                               <div className="text-xs text-muted-foreground">@ {exercise.percentOfMax}%</div>
-                            )}
+                            ) : null}
                           </div>
                         </div>
                       ))}
