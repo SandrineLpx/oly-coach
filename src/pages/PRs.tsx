@@ -114,7 +114,7 @@ function PRForm({ pr, onSave, onClose }: { pr?: PR; onSave: (data: Omit<PR, 'id'
 }
 
 export default function PRs() {
-  const { prs, preferences, addPR, updatePR, deletePR } = useAppStore();
+  const { prs, preferences, addPR, updatePR, deletePR, recordPRHistory } = useAppStore();
   const sortedPRs = [...prs].sort((a, b) => b.weight - a.weight);
   const [addOpen, setAddOpen] = useState(false);
   const [editPR, setEditPR] = useState<PR | null>(null);
@@ -123,10 +123,16 @@ export default function PRs() {
 
   const handleAdd = (data: Omit<PR, 'id'> & { id?: string }) => {
     addPR({ ...data, id: generateId() });
+    // Also record in PR history for the progression chart
+    recordPRHistory({ lift_name: data.liftName, weight: data.weight, unit: data.unit, achieved_at: data.date });
   };
 
   const handleEdit = (data: Omit<PR, 'id'> & { id?: string }) => {
-    if (data.id) updatePR(data.id, data);
+    if (data.id) {
+      updatePR(data.id, data);
+      // Record updated PR in history too
+      recordPRHistory({ lift_name: data.liftName, weight: data.weight, unit: data.unit, achieved_at: data.date });
+    }
   };
 
   return (
