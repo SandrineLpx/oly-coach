@@ -1,15 +1,13 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, Plus, Pencil, Trash2, CalendarIcon } from 'lucide-react';
+import { Trophy, Plus, Pencil, Trash2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, isValid, parse } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import type { PR } from '@/lib/types';
 
@@ -25,6 +23,10 @@ function PRForm({ pr, onSave, onClose }: { pr?: PR; onSave: (data: Omit<PR, 'id'
     if (!liftName.trim() || !weight) return;
     onSave({ id: pr?.id, liftName: liftName.trim(), weight: parseFloat(weight), unit, date });
     onClose();
+  };
+
+  const handleDateInput = (value: string) => {
+    setDate(value);
   };
 
   return (
@@ -50,24 +52,13 @@ function PRForm({ pr, onSave, onClose }: { pr?: PR; onSave: (data: Omit<PR, 'id'
       </div>
       <div>
         <Label>Date</Label>
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className={cn("w-full justify-start text-left font-normal mt-1", !date && "text-muted-foreground")}>
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {date ? format(parseISO(date), 'PPP') : 'Pick a date'}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={date ? parseISO(date) : undefined}
-              onSelect={(d) => d && setDate(format(d, 'yyyy-MM-dd'))}
-              disabled={(d) => d > new Date()}
-              initialFocus
-              className={cn("p-3 pointer-events-auto")}
-            />
-          </PopoverContent>
-        </Popover>
+        <Input
+          type="date"
+          value={date}
+          max={format(new Date(), 'yyyy-MM-dd')}
+          onChange={e => handleDateInput(e.target.value)}
+          className="mt-1"
+        />
       </div>
       <Button type="submit" className="w-full">{pr ? 'Update PR' : 'Add PR'}</Button>
     </form>

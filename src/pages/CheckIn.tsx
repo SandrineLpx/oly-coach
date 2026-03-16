@@ -288,7 +288,7 @@ export default function CheckIn() {
       recentCardio,
       daysSinceHeavy,
       profile?.competitionDate,
-      baseSession.date || format(new Date(), 'yyyy-MM-dd'),
+      (baseSession as any).date || format(new Date(), 'yyyy-MM-dd'),
     );
 
     if (adjustment.newType !== baseSession.type) {
