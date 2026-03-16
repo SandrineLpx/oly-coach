@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Plus, Pencil, Trash2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
@@ -12,12 +12,35 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import type { PR } from '@/lib/types';
 
+const COMMON_LIFTS = [
+  'Snatch', 'Clean & Jerk', 'Clean', 'Jerk',
+  'Power Snatch', 'Power Clean', 'Power Jerk',
+  'Back Squat', 'Front Squat', 'Overhead Squat',
+  'Snatch Deadlift', 'Clean Deadlift', 'Deadlift',
+  'Push Press', 'Strict Press', 'Behind Neck Jerk',
+  'Snatch Pull', 'Clean Pull',
+  'Hang Snatch', 'Hang Clean',
+  'Block Snatch', 'Block Clean',
+  'Snatch Balance', 'Drop Snatch',
+  'Pause Squat', 'Pin Squat',
+];
+
 function PRForm({ pr, onSave, onClose }: { pr?: PR; onSave: (data: Omit<PR, 'id'> & { id?: string }) => void; onClose: () => void }) {
-  const { preferences } = useAppStore();
+  const { preferences, prs } = useAppStore();
   const [liftName, setLiftName] = useState(pr?.liftName || '');
   const [weight, setWeight] = useState(pr?.weight?.toString() || '');
   const [unit, setUnit] = useState<'kg' | 'lb'>(pr?.unit || preferences.units);
   const [date, setDate] = useState(pr?.date || format(new Date(), 'yyyy-MM-dd'));
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  // Filter suggestions: common lifts + existing PR names, excluding already-typed value
+  const suggestions = useMemo(() => {
+    const existingNames = prs.map(p => p.liftName);
+    const all = Array.from(new Set([...existingNames, ...COMMON_LIFTS]));
+    if (!liftName.trim()) return all;
+    const q = liftName.toLowerCase();
+    return all.filter(name => name.toLowerCase().includes(q) && name.toLowerCase() !== q);
+  }, [liftName, prs]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,9 +55,33 @@ function PRForm({ pr, onSave, onClose }: { pr?: PR; onSave: (data: Omit<PR, 'id'
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
+      <div className="relative">
         <Label>Lift Name</Label>
-        <Input value={liftName} onChange={e => setLiftName(e.target.value)} placeholder="e.g. Snatch" required />
+        <Input
+          value={liftName}
+          onChange={e => { setLiftName(e.target.value); setShowSuggestions(true); }}
+          onFocus={() => setShowSuggestions(true)}
+          placeholder="e.g. Snatch"
+          required
+          autoComplete="off"
+        />
+        {showSuggestions && suggestions.length > 0 && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setShowSuggestions(false)} />
+            <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg max-h-40 overflow-y-auto">
+              {suggestions.map(name => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => { setLiftName(name); setShowSuggestions(false); }}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors text-foreground"
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
       <div>
         <Label>Weight</Label>
