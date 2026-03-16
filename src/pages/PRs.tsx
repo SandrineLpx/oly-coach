@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Plus, Pencil, Trash2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
