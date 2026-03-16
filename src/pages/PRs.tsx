@@ -100,6 +100,11 @@ export default function PRs() {
         </Dialog>
       </motion.div>
 
+      {/* PR Progression Chart */}
+      <div className="mb-6">
+        <PRProgressionChart />
+      </div>
+
       {prs.length === 0 ? (
         <div className="text-center py-12">
           <Trophy className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
