@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { Dumbbell, Sparkles } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronDown, Dumbbell, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { SessionBadge } from '@/components/SessionBadge';
@@ -51,6 +51,23 @@ export function ProgramWeekView({
 }: Props) {
   const todayDow = new Date().getDay();
   const hasOverride = !!override?.session_assignments?.length;
+  const [expandedRescued, setExpandedRescued] = useState<string | null>(null);
+
+  // Athlete-facing: group rescued exercises by the session they were absorbed into.
+  const rescuedBySession = useMemo(() => {
+    const map = new Map<string, Array<{ name: string; sets: number; reps: string; from: string }>>();
+    if (isCoach) return map;
+    const drops = override?.dropped_sessions ?? [];
+    for (const d of drops) {
+      for (const rx of d.rescued_exercises ?? []) {
+        if (!rx.absorb_into_session_id) continue;
+        const arr = map.get(rx.absorb_into_session_id) ?? [];
+        arr.push({ name: rx.name, sets: rx.sets, reps: rx.reps, from: d.focus_label });
+        map.set(rx.absorb_into_session_id, arr);
+      }
+    }
+    return map;
+  }, [override, isCoach]);
 
   // Build the effective ordered list of sessions to display.
   // - When override exists: use override schedule order (by day), look up session details by id, exclude dropped.
@@ -136,6 +153,53 @@ export function ProgramWeekView({
             </div>
 
             {session.notes && <p className="text-sm text-muted-foreground mb-3">{session.notes}</p>}
+
+            {(() => {
+              const rescued = rescuedBySession.get(session.id);
+              if (!rescued || rescued.length === 0) return null;
+              const isOpen = expandedRescued === session.id;
+              return (
+                <div className="mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedRescued(isOpen ? null : session.id)}
+                    className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full bg-warning/15 text-warning border border-warning/30 hover:bg-warning/20 transition-colors"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    +{rescued.length} added this week
+                    <ChevronDown
+                      className={cn('w-3 h-3 transition-transform', isOpen && 'rotate-180')}
+                    />
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.18 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {rescued.map((rx, i) => (
+                            <span
+                              key={i}
+                              className="text-[11px] px-2 py-1 rounded-full bg-background border border-warning/30 text-foreground"
+                              title={`From ${rx.from}`}
+                            >
+                              {rx.name}
+                              {rx.sets && rx.reps && (
+                                <span className="text-muted-foreground"> · {rx.sets}×{rx.reps}</span>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })()}
 
             {exercises.length > 0 && (
               <div className="space-y-1">
