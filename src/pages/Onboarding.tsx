@@ -241,6 +241,7 @@ function PRsStep({ onNext }: StepProps) {
 
 function ScheduleStep({ onNext }: StepProps) {
   const { profile, setProfile } = useAppStore();
+  const isPowerUser = usePowerUser();
   const [selectedDays, setSelectedDays] = useState<number[]>(profile?.preferredDays || [1, 3, 5]);
   const [locationStatus, setLocationStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
 

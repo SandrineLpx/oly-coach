@@ -14,6 +14,7 @@ import { WeekSummary } from '@/components/WeekSummary';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { usePowerUser } from '@/lib/powerUser';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
