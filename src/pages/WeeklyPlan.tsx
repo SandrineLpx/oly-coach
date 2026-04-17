@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Calendar, RefreshCw, CheckCircle, Clock, ChevronLeft, ChevronRight, SkipForward, AlertTriangle, Activity } from 'lucide-react';
@@ -7,7 +7,11 @@ import { SessionBadge } from '@/components/SessionBadge';
 import { useAppStore } from '@/lib/store';
 import { format, parseISO, isToday } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { ProgramWeekView } from '@/components/ProgramWeekView';
+import { ProgramWeekView, type WeekOverride } from '@/components/ProgramWeekView';
+import { FlexibleWeekPlanner } from '@/components/FlexibleWeekPlanner';
+import { useUserRole } from '@/hooks/useUserRole';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
