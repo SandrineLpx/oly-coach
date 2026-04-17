@@ -1,14 +1,14 @@
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Upload, FileSpreadsheet, Eye, Save, Loader2, ArrowLeft, AlertCircle } from 'lucide-react';
+import { FileSpreadsheet, Eye, Loader2, ArrowLeft, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { useAppStore } from '@/lib/store';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import ProgramOverviewEditor from '@/components/ProgramOverviewEditor';
 
 interface ParsedExercise {
   name: string;
@@ -47,11 +47,9 @@ const SESSION_COLORS: Record<string, string> = {
 
 export default function ImportProgram() {
   const navigate = useNavigate();
-  const { saveProgram } = useAppStore();
   const [rawText, setRawText] = useState('');
   const [parsed, setParsed] = useState<ParsedProgram | null>(null);
   const [parsing, setParsing] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [previewWeek, setPreviewWeek] = useState(1);
 
@@ -155,21 +153,7 @@ export default function ImportProgram() {
     }
   };
 
-  const handleSave = async () => {
-    if (!parsed) return;
-    setSaving(true);
-
-    try {
-      await saveProgram(parsed, startDate);
-      toast.success('Program saved!');
-      navigate('/settings');
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.message || 'Failed to save program');
-    } finally {
-      setSaving(false);
-    }
-  };
+  // Save flow now lives inside ProgramOverviewEditor (Save draft / Assign to athlete).
 
   const weekSessions = parsed?.sessions.filter(s => s.week_number === previewWeek) || [];
 
