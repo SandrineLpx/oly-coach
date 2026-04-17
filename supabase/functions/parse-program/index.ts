@@ -45,7 +45,19 @@ For each training day/session, also extract and return scheduling priority metad
 - drop_reason: one sentence explaining what is lost if this session is skipped
   - REQUIRED if droppable = true; otherwise return null
 
-For REST days: priority = "supplemental", droppable = true, focus_label = "Rest", drop_reason = null.`;
+For REST days: priority = "supplemental", droppable = true, focus_label = "Rest", drop_reason = null.
+
+After parsing all sessions, also return at the PROGRAM level:
+
+- description: 3-5 sentences. What this program prioritizes, how it is structured, and what the athlete should expect. Tone: clear, direct, no fluff. Written as if the coach is briefing the athlete.
+
+- phase_summary: array of phase objects. Detect phases from week labels, block names, or load progression patterns (e.g. accumulation -> intensification -> peaking -> deload). Each object has shape:
+  {
+    "weeks": "1-4",   // week range as a string, inclusive
+    "label": "Accumulation",  // short phase name (e.g. "Accumulation", "Wave Loading", "Peak Strength", "Deload")
+    "summary": "1-2 sentences describing what changes in this phase and why"
+  }
+  If you cannot detect distinct phases, return a single phase covering all weeks.`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -97,7 +109,21 @@ serve(async (req) => {
                     },
                     description: {
                       type: "string",
-                      description: "Brief program description",
+                      description: "3-5 sentence coach-style program overview for the athlete",
+                    },
+                    phase_summary: {
+                      type: "array",
+                      description: "Phase-by-phase breakdown of the program",
+                      items: {
+                        type: "object",
+                        properties: {
+                          weeks: { type: "string", description: "Week range, e.g. '1-4'" },
+                          label: { type: "string", description: "Short phase name" },
+                          summary: { type: "string", description: "1-2 sentences about this phase" },
+                        },
+                        required: ["weeks", "label", "summary"],
+                        additionalProperties: false,
+                      },
                     },
                     weeks: {
                       type: "integer",
