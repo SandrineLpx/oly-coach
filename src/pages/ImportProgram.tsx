@@ -251,15 +251,20 @@ export default function ImportProgram() {
             ))}
           </div>
 
-          {/* Step 3: Save */}
-          <div className="bg-card rounded-xl border border-border p-4 space-y-3">
-            <label className="text-sm font-medium">Program Start Date</label>
+          {/* Start date */}
+          <div className="bg-card rounded-xl border border-border p-4 space-y-2">
+            <label className="text-sm font-medium">Program start date</label>
             <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
-            <Button onClick={handleSave} disabled={saving} className="w-full">
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              {saving ? 'Saving…' : 'Save Program'}
-            </Button>
           </div>
+
+          {/* Review & Publish */}
+          <ProgramOverviewEditor
+            parsed={parsed}
+            startDate={startDate}
+            onSaved={(_id, published) => {
+              if (published) navigate('/settings');
+            }}
+          />
         </motion.div>
       )}
     </div>
