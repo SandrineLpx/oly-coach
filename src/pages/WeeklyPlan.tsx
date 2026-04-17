@@ -92,15 +92,45 @@ export default function WeeklyPlan() {
   if (activeProgram && viewWeek !== null) {
     return (
       <div className="min-h-screen px-4 py-6 pb-24">
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
-          <h1 className="text-2xl font-bold mb-1">{activeProgram.name}</h1>
-          <p className="text-muted-foreground text-sm">
-            {activeProgram.description || `${activeProgram.weeks}-week program`}
-          </p>
-        </motion.div>
+    const ap: any = activeProgram;
+    const phaseSummary = (ap.phase_summary as any[] | null) ?? null;
+    const droppedThisWeek = override?.dropped_sessions ?? null;
+    const isAthleteView = !isCoach;
+
+    return (
+      <div className="min-h-screen px-4 py-6 pb-24 space-y-4">
+        {/* Compact mobile-first weekly summary */}
+        <WeekSummary
+          currentWeek={viewWeek}
+          totalWeeks={activeProgram.weeks}
+          phaseSummary={phaseSummary}
+          hasOverride={!!override?.session_assignments?.length}
+        />
+
+        {/* Athlete-facing program overview: phases, progress, drop banner */}
+        {isAthleteView && (
+          <ProgramOverview
+            name={activeProgram.name}
+            description={activeProgram.description}
+            phaseSummary={phaseSummary}
+            currentWeek={viewWeek}
+            totalWeeks={activeProgram.weeks}
+            droppedThisWeek={droppedThisWeek}
+          />
+        )}
+
+        {/* Coach-only header (kept for existing coach flow) */}
+        {!isAthleteView && (
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
+            <h1 className="text-2xl font-bold mb-1">{activeProgram.name}</h1>
+            <p className="text-muted-foreground text-sm">
+              {activeProgram.description || `${activeProgram.weeks}-week program`}
+            </p>
+          </motion.div>
+        )}
 
         {/* Week Navigator */}
-        <div className="flex items-center justify-between bg-card rounded-xl border border-border p-3 mb-4">
+        <div className="flex items-center justify-between bg-card rounded-xl border border-border p-3">
           <button
             onClick={() => setViewWeek(Math.max(1, viewWeek - 1))}
             disabled={viewWeek <= 1}
@@ -124,16 +154,6 @@ export default function WeeklyPlan() {
           </button>
         </div>
 
-        {/* Progress Bar */}
-        <div className="mb-6">
-          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-            <div
-              className="h-full bg-primary rounded-full transition-all"
-              style={{ width: `${((getCurrentProgramWeek() || 1) / activeProgram.weeks) * 100}%` }}
-            />
-          </div>
-        </div>
-
         <ProgramWeekView
           sessions={activeProgram.program_sessions?.filter((s) => s.week_number === viewWeek) || []}
           onStartSession={() => navigate('/checkin')}
@@ -141,6 +161,7 @@ export default function WeeklyPlan() {
           override={override}
           onOpenFlexible={() => setFlexibleOpen(true)}
         />
+
 
         {flexibleOpen && user && (
           <FlexibleWeekPlanner
