@@ -331,25 +331,27 @@ function ScheduleStep({ onNext }: StepProps) {
         </p>
       </div>
       
-      {/* Location for weather */}
-      <div className="bg-card rounded-xl p-4 border border-border mb-8">
-        <Label className="text-sm font-medium">Location (for weather-based cardio suggestions)</Label>
-        <button
-          onClick={handleGetLocation}
-          disabled={locationStatus === 'loading'}
-          className={cn(
-            'w-full mt-3 p-3 rounded-lg border text-sm font-medium transition-all text-center',
-            locationStatus === 'done' ? 'border-success text-success bg-success/5' :
-            locationStatus === 'error' ? 'border-destructive text-destructive bg-destructive/5' :
-            'border-border text-muted-foreground hover:border-primary/50'
-          )}
-        >
-          {locationStatus === 'idle' && 'Enable location'}
-          {locationStatus === 'loading' && 'Getting location...'}
-          {locationStatus === 'done' && 'Location set'}
-          {locationStatus === 'error' && 'Could not get location — skip for now'}
-        </button>
-      </div>
+      {/* Location for weather (power users only — Olympic-lifting first app) */}
+      {isPowerUser && (
+        <div className="bg-card rounded-xl p-4 border border-border mb-8">
+          <Label className="text-sm font-medium">Location (for weather-based cardio suggestions)</Label>
+          <button
+            onClick={handleGetLocation}
+            disabled={locationStatus === 'loading'}
+            className={cn(
+              'w-full mt-3 p-3 rounded-lg border text-sm font-medium transition-all text-center',
+              locationStatus === 'done' ? 'border-success text-success bg-success/5' :
+              locationStatus === 'error' ? 'border-destructive text-destructive bg-destructive/5' :
+              'border-border text-muted-foreground hover:border-primary/50'
+            )}
+          >
+            {locationStatus === 'idle' && 'Enable location'}
+            {locationStatus === 'loading' && 'Getting location...'}
+            {locationStatus === 'done' && 'Location set'}
+            {locationStatus === 'error' && 'Could not get location — skip for now'}
+          </button>
+        </div>
+      )}
 
       <Button
         size="lg"
