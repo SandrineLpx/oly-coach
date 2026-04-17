@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { lovable } from '@/integrations/lovable';
 
 export default function Auth() {
   const [mode, setMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
@@ -13,8 +14,20 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const { signIn, signUp, resetPassword } = useAuth();
   const { toast } = useToast();
+
+  const handleGoogle = async () => {
+    setGoogleLoading(true);
+    const result = await lovable.auth.signInWithOAuth('google', {
+      redirect_uri: window.location.origin,
+    });
+    if (result.error) {
+      setGoogleLoading(false);
+      toast({ title: 'Google sign-in failed', description: result.error.message, variant: 'destructive' });
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,6 +79,29 @@ export default function Auth() {
             {mode === 'forgot' && 'Reset your password'}
           </p>
         </div>
+
+        {/* Google sign-in */}
+        {mode !== 'forgot' && (
+          <div className="space-y-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleGoogle}
+              disabled={googleLoading || loading}
+              className="w-full h-12 font-semibold"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
+                <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.2 1.4-1.6 4.1-5.5 4.1-3.3 0-6-2.7-6-6.1s2.7-6.1 6-6.1c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.8 3.4 14.6 2.5 12 2.5 6.8 2.5 2.6 6.7 2.6 12s4.2 9.5 9.4 9.5c5.4 0 9-3.8 9-9.2 0-.6-.1-1.1-.2-1.6H12z"/>
+              </svg>
+              {googleLoading ? 'Redirecting…' : 'Continue with Google'}
+            </Button>
+            <div className="flex items-center gap-3">
+              <div className="h-px bg-border flex-1" />
+              <span className="text-xs text-muted-foreground uppercase tracking-wider">or</span>
+              <div className="h-px bg-border flex-1" />
+            </div>
+          </div>
+        )}
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
