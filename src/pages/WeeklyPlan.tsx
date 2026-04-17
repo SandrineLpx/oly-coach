@@ -9,6 +9,8 @@ import { format, parseISO, isToday } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ProgramWeekView, type WeekOverride } from '@/components/ProgramWeekView';
 import { FlexibleWeekPlanner } from '@/components/FlexibleWeekPlanner';
+import ProgramOverview from '@/components/ProgramOverview';
+import { WeekSummary } from '@/components/WeekSummary';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
