@@ -159,36 +159,55 @@ export type Database = {
       }
       program_sessions: {
         Row: {
+          can_merge_into: string | null
           day_of_week: number
+          droppable: boolean | null
+          focus_label: string | null
           id: string
           name: string | null
           notes: string | null
           order_index: number
+          priority: string | null
           program_id: string
           session_type: string
           week_number: number
         }
         Insert: {
+          can_merge_into?: string | null
           day_of_week: number
+          droppable?: boolean | null
+          focus_label?: string | null
           id?: string
           name?: string | null
           notes?: string | null
           order_index?: number
+          priority?: string | null
           program_id: string
           session_type?: string
           week_number: number
         }
         Update: {
+          can_merge_into?: string | null
           day_of_week?: number
+          droppable?: boolean | null
+          focus_label?: string | null
           id?: string
           name?: string | null
           notes?: string | null
           order_index?: number
+          priority?: string | null
           program_id?: string
           session_type?: string
           week_number?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "program_sessions_can_merge_into_fkey"
+            columns: ["can_merge_into"]
+            isOneToOne: false
+            referencedRelation: "program_sessions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "program_sessions_program_id_fkey"
             columns: ["program_id"]
@@ -204,7 +223,9 @@ export type Database = {
           description: string | null
           id: string
           is_active: boolean
+          is_template: boolean | null
           name: string
+          source: string | null
           start_date: string
           user_id: string
           weeks: number
@@ -214,7 +235,9 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          is_template?: boolean | null
           name: string
+          source?: string | null
           start_date: string
           user_id: string
           weeks?: number
@@ -224,12 +247,65 @@ export type Database = {
           description?: string | null
           id?: string
           is_active?: boolean
+          is_template?: boolean | null
           name?: string
+          source?: string | null
           start_date?: string
           user_id?: string
           weeks?: number
         }
         Relationships: []
+      }
+      weekly_overrides: {
+        Row: {
+          athlete_id: string | null
+          available_days: string[] | null
+          created_at: string
+          created_by: string | null
+          dropped_sessions: Json | null
+          id: string
+          program_id: string | null
+          session_assignments: Json | null
+          week_number: number
+        }
+        Insert: {
+          athlete_id?: string | null
+          available_days?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          dropped_sessions?: Json | null
+          id?: string
+          program_id?: string | null
+          session_assignments?: Json | null
+          week_number: number
+        }
+        Update: {
+          athlete_id?: string | null
+          available_days?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          dropped_sessions?: Json | null
+          id?: string
+          program_id?: string | null
+          session_assignments?: Json | null
+          week_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_overrides_athlete_id_fkey"
+            columns: ["athlete_id"]
+            isOneToOne: false
+            referencedRelation: "athlete_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_overrides_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
