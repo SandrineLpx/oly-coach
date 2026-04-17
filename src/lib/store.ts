@@ -470,6 +470,10 @@ export const useAppStore = create<AppState>()(
               name: session.name || null,
               notes: session.notes || null,
               order_index: session.week_number * 10 + session.day_of_week,
+              priority: session.priority ?? 'primary',
+              droppable: session.droppable ?? false,
+              focus_label: session.focus_label ?? null,
+              // can_merge_into stays null for now — handled in a later step
             })
             .select()
             .single();

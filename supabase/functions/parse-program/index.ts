@@ -26,7 +26,26 @@ Key rules:
   - notes: any additional info — intensity ranges ("80-85%"), qualitative cues ("Challenging with good form"), tempo, rest periods, or anything that doesn't fit cleanly into sets/reps/percent
   - order_index: 0-based order within the session
 - Preserve the coach's original wording in notes when intensity can't be reduced to a single number.
-- If a day is marked as rest or off, still include it as a session with session_type "REST" and empty exercises.`;
+- If a day is marked as rest or off, still include it as a session with session_type "REST" and empty exercises.
+
+For each training day/session, also extract and return scheduling priority metadata:
+
+- priority: classify as one of: "primary" | "secondary" | "supplemental"
+  - primary = competition lifts (snatch, clean & jerk) OR heavy main strength (squat, deadlift)
+  - secondary = second strength pillar, pressing, supporting compound work
+  - supplemental = volume days, accessory-only days, deload days, pulls-only days
+
+- droppable: true | false
+  - true ONLY if priority = "supplemental"
+  - false for primary and secondary
+
+- focus_label: short string (max 6 words) describing the day's main purpose
+  - examples: "Back Squat heavy", "Competition lift - Snatch", "Volume + Accessories"
+
+- drop_reason: one sentence explaining what is lost if this session is skipped
+  - REQUIRED if droppable = true; otherwise return null
+
+For REST days: priority = "supplemental", droppable = true, focus_label = "Rest", drop_reason = null.`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -94,6 +113,23 @@ serve(async (req) => {
                           session_type: { type: "string" },
                           name: { type: "string" },
                           notes: { type: "string" },
+                          priority: {
+                            type: "string",
+                            enum: ["primary", "secondary", "supplemental"],
+                            description: "Scheduling priority of the session",
+                          },
+                          droppable: {
+                            type: "boolean",
+                            description: "True only if priority is supplemental",
+                          },
+                          focus_label: {
+                            type: "string",
+                            description: "Short (max 6 words) main purpose of the day",
+                          },
+                          drop_reason: {
+                            type: ["string", "null"],
+                            description: "What is lost if skipped; required when droppable=true",
+                          },
                           exercises: {
                             type: "array",
                             items: {
