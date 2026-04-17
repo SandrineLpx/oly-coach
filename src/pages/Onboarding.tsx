@@ -12,6 +12,7 @@ import { Slider } from '@/components/ui/slider';
 import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { PR } from '@/lib/types';
+import { usePowerUser } from '@/lib/powerUser';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const KEY_LIFTS = ['Snatch', 'Clean & Jerk', 'Back Squat', 'Front Squat'];
@@ -474,6 +475,7 @@ function IntegrationsStep({ onNext }: StepProps) {
 export default function Onboarding() {
   const navigate = useNavigate();
   const { completeOnboarding, generateWeeklyPlan, profile } = useAppStore();
+  const isPowerUser = usePowerUser();
   const [step, setStep] = useState(0);
 
   const nextStep = () => setStep(s => s + 1);
@@ -487,12 +489,16 @@ export default function Onboarding() {
     navigate('/');
   };
 
+  // Olympic-weightlifting first: hide cross-training integrations from
+  // standard users. Power users still see Strava + cardio prefs.
   const steps = [
     <WelcomeStep key="welcome" onNext={nextStep} />,
     <ProfileStep key="profile" onNext={nextStep} onBack={prevStep} />,
     <PRsStep key="prs" onNext={nextStep} onBack={prevStep} />,
-    <ScheduleStep key="schedule" onNext={nextStep} onBack={prevStep} />,
-    <IntegrationsStep key="integrations" onNext={finishOnboarding} onBack={prevStep} />,
+    <ScheduleStep key="schedule" onNext={isPowerUser ? nextStep : finishOnboarding} onBack={prevStep} />,
+    ...(isPowerUser
+      ? [<IntegrationsStep key="integrations" onNext={finishOnboarding} onBack={prevStep} />]
+      : []),
   ];
 
   return (

@@ -13,6 +13,7 @@ import { calculateReadiness, getDaysSinceHeavySession } from '@/lib/training-log
 import { fetchWeeklyForecast, DailyForecast, formatForecastShort, getWeatherDescription } from '@/lib/weather';
 import { format, isToday, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { usePowerUser } from '@/lib/powerUser';
 
 export default function Dashboard() {
   const navigate = useNavigate();
