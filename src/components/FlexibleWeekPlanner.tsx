@@ -146,8 +146,8 @@ export function FlexibleWeekPlanner({
         setExistingOverrideId(data.id);
         const days = (data.available_days || []).map((d) => parseInt(d, 10)).filter((n) => !isNaN(n));
         setAvailableDays(days.length > 0 ? days : sessions.map((s) => s.day_of_week));
-        setSchedule((data.session_assignments as ScheduleSlot[]) || []);
-        setDropped((data.dropped_sessions as DroppedSession[]) || []);
+        setSchedule(((data.session_assignments as unknown) as ScheduleSlot[]) || []);
+        setDropped(((data.dropped_sessions as unknown) as DroppedSession[]) || []);
       } else {
         setExistingOverrideId(null);
         // Default: every day a session is currently scheduled on
