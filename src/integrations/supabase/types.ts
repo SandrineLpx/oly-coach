@@ -83,6 +83,30 @@ export type Database = {
         }
         Relationships: []
       }
+      gym_settings: {
+        Row: {
+          coach_invite_code_hash: string | null
+          id: number
+          is_setup_complete: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          coach_invite_code_hash?: string | null
+          id?: number
+          is_setup_complete?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          coach_invite_code_hash?: string | null
+          id?: number
+          is_setup_complete?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       pr_history: {
         Row: {
           achieved_at: string
@@ -309,6 +333,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       weekly_overrides: {
         Row: {
           athlete_id: string
@@ -358,10 +403,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      redeem_coach_code: { Args: { _plain_code: string }; Returns: Json }
+      setup_gym_code: { Args: { _plain_code: string }; Returns: Json }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "coach" | "athlete"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -488,6 +541,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["coach", "athlete"],
+    },
   },
 } as const

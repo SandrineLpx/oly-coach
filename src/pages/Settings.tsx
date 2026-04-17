@@ -1,17 +1,19 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Scale, RotateCcw, Trophy, LogOut, BookOpen, Upload, Target } from 'lucide-react';
+import { User, Scale, RotateCcw, Trophy, LogOut, BookOpen, Upload, Target, KeyRound, Shield } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/lib/store';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 
 export default function Settings() {
   const navigate = useNavigate();
   const { profile, setProfile, preferences, updatePreferences, resetApp, activeProgram, fetchActiveProgram, getCurrentProgramWeek } = useAppStore();
   const { signOut } = useAuth();
+  const { isCoach, loading: roleLoading } = useUserRole();
 
   useEffect(() => { fetchActiveProgram(); }, []);
 
@@ -51,13 +53,32 @@ export default function Settings() {
           </div>
         </button>
 
-        <button onClick={() => navigate('/import-program')} className="w-full bg-card rounded-xl p-4 border border-border flex items-center gap-3 text-left hover:border-primary/50 transition-colors">
-          <Upload className="w-5 h-5 text-primary" />
-          <div className="flex-1">
-            <h3 className="font-semibold">Import Program</h3>
-            <p className="text-xs text-muted-foreground">Upload or paste a coach's program (Excel, text)</p>
+        <div className="bg-card rounded-xl p-4 border border-border">
+          <div className="flex items-center gap-3 mb-2">
+            <Shield className="w-5 h-5 text-primary" />
+            <h3 className="font-semibold">Role</h3>
           </div>
-        </button>
+          <p className="text-sm">
+            {roleLoading ? '…' : isCoach ? 'Coach' : 'Athlete'}
+          </p>
+          <button
+            onClick={() => navigate('/become-coach')}
+            className="mt-3 text-xs text-primary hover:underline flex items-center gap-1"
+          >
+            <KeyRound className="w-3 h-3" />
+            {isCoach ? 'Manage gym code' : 'Become a coach (enter gym code)'}
+          </button>
+        </div>
+
+        {isCoach && (
+          <button onClick={() => navigate('/import-program')} className="w-full bg-card rounded-xl p-4 border border-border flex items-center gap-3 text-left hover:border-primary/50 transition-colors">
+            <Upload className="w-5 h-5 text-primary" />
+            <div className="flex-1">
+              <h3 className="font-semibold">Import Program</h3>
+              <p className="text-xs text-muted-foreground">Upload or paste a coach's program (Excel, text)</p>
+            </div>
+          </button>
+        )}
 
         {activeProgram && (
           <div className="bg-card rounded-xl p-4 border border-border">
