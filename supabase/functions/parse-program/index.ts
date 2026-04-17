@@ -65,13 +65,23 @@ serve(async (req) => {
   }
 
   try {
-    const { rawText } = await req.json();
+    const { rawText, chunkIndex, totalChunks } = await req.json();
     if (!rawText || typeof rawText !== "string") {
       return new Response(JSON.stringify({ error: "rawText is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const isChunked = typeof totalChunks === "number" && totalChunks > 1;
+    const isFirstChunk = !isChunked || chunkIndex === 0;
+
+    // For non-first chunks, instruct the model to skip program-level work to save CPU.
+    const chunkInstruction = isChunked
+      ? isFirstChunk
+        ? `\n\nThis is chunk 1 of ${totalChunks}. Parse the sessions in this chunk AND produce program-level fields (name, description, phase_summary). Use the visible weeks here plus typical structure to infer phases for the whole program.`
+        : `\n\nThis is chunk ${chunkIndex + 1} of ${totalChunks}. Parse the sessions in this chunk ONLY. For program-level fields, return name="(chunk)", description="", phase_summary=[]. Do NOT try to summarize the whole program.`
+      : "";
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
@@ -87,7 +97,7 @@ serve(async (req) => {
         body: JSON.stringify({
           model: "google/gemini-2.5-flash",
           messages: [
-            { role: "system", content: SYSTEM_PROMPT },
+            { role: "system", content: SYSTEM_PROMPT + chunkInstruction },
             {
               role: "user",
               content: `Parse this training program:\n\n${rawText}`,
