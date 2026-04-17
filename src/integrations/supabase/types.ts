@@ -113,6 +113,41 @@ export type Database = {
         }
         Relationships: []
       }
+      program_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string
+          athlete_id: string
+          id: string
+          is_active: boolean
+          program_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by: string
+          athlete_id: string
+          id?: string
+          is_active?: boolean
+          program_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string
+          athlete_id?: string
+          id?: string
+          is_active?: boolean
+          program_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_assignments_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       program_exercises: {
         Row: {
           id: string
@@ -226,6 +261,7 @@ export type Database = {
           is_template: boolean | null
           name: string
           phase_summary: Json | null
+          published: boolean
           source: string | null
           start_date: string
           user_id: string
@@ -239,6 +275,7 @@ export type Database = {
           is_template?: boolean | null
           name: string
           phase_summary?: Json | null
+          published?: boolean
           source?: string | null
           start_date: string
           user_id: string
@@ -252,6 +289,7 @@ export type Database = {
           is_template?: boolean | null
           name?: string
           phase_summary?: Json | null
+          published?: boolean
           source?: string | null
           start_date?: string
           user_id?: string

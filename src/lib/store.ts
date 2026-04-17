@@ -78,7 +78,7 @@ interface AppState {
   completeOnboarding: () => void;
   resetApp: () => void;
   deletePR: (id: string) => void;
-  saveProgram: (parsed: any, startDate: string) => Promise<void>;
+  saveProgram: (parsed: any, startDate: string, opts?: { published?: boolean }) => Promise<string>;
   recordPRHistory: (entry: { lift_name: string; weight: number; unit: string; achieved_at: string }) => void;
 }
 
@@ -431,7 +431,7 @@ export const useAppStore = create<AppState>()(
         prs: state.prs.filter(p => p.id !== id),
       })),
 
-      saveProgram: async (parsed: any, startDate: string) => {
+      saveProgram: async (parsed: any, startDate: string, opts?: { published?: boolean }) => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) throw new Error('Not authenticated');
 
@@ -453,6 +453,7 @@ export const useAppStore = create<AppState>()(
             weeks: parsed.weeks,
             start_date: startDate,
             is_active: true,
+            published: opts?.published ?? false,
           })
           .select()
           .single();
@@ -502,6 +503,7 @@ export const useAppStore = create<AppState>()(
 
         // Refresh active program in store
         await get().fetchActiveProgram();
+        return program.id as string;
       },
 
       recordPRHistory: (entry) => {
