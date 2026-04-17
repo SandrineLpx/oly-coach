@@ -403,11 +403,31 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_view_exercise: {
+        Args: { _session_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_view_program: {
+        Args: { _program_id: string; _user_id: string }
+        Returns: boolean
+      }
+      has_active_assignment: {
+        Args: { _program_id: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_program_owner: {
+        Args: { _program_id: string; _user_id: string }
+        Returns: boolean
+      }
+      owns_exercise_session: {
+        Args: { _session_id: string; _user_id: string }
         Returns: boolean
       }
       redeem_coach_code: { Args: { _plain_code: string }; Returns: Json }
