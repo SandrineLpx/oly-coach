@@ -154,6 +154,53 @@ export function ProgramWeekView({
 
             {session.notes && <p className="text-sm text-muted-foreground mb-3">{session.notes}</p>}
 
+            {(() => {
+              const rescued = rescuedBySession.get(session.id);
+              if (!rescued || rescued.length === 0) return null;
+              const isOpen = expandedRescued === session.id;
+              return (
+                <div className="mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setExpandedRescued(isOpen ? null : session.id)}
+                    className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-full bg-warning/15 text-warning border border-warning/30 hover:bg-warning/20 transition-colors"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    +{rescued.length} added this week
+                    <ChevronDown
+                      className={cn('w-3 h-3 transition-transform', isOpen && 'rotate-180')}
+                    />
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.18 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {rescued.map((rx, i) => (
+                            <span
+                              key={i}
+                              className="text-[11px] px-2 py-1 rounded-full bg-background border border-warning/30 text-foreground"
+                              title={`From ${rx.from}`}
+                            >
+                              {rx.name}
+                              {rx.sets && rx.reps && (
+                                <span className="text-muted-foreground"> · {rx.sets}×{rx.reps}</span>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })()}
+
             {exercises.length > 0 && (
               <div className="space-y-1">
                 {exercises.map((ex) => (
