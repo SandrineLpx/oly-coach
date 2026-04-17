@@ -118,25 +118,37 @@ export type Database = {
           assigned_at: string
           assigned_by: string
           athlete_id: string
+          completed_at: string | null
+          current_week: number
           id: string
           is_active: boolean
           program_id: string
+          start_date: string | null
+          status: string
         }
         Insert: {
           assigned_at?: string
           assigned_by: string
           athlete_id: string
+          completed_at?: string | null
+          current_week?: number
           id?: string
           is_active?: boolean
           program_id: string
+          start_date?: string | null
+          status?: string
         }
         Update: {
           assigned_at?: string
           assigned_by?: string
           athlete_id?: string
+          completed_at?: string | null
+          current_week?: number
           id?: string
           is_active?: boolean
           program_id?: string
+          start_date?: string | null
+          status?: string
         }
         Relationships: [
           {
@@ -299,46 +311,39 @@ export type Database = {
       }
       weekly_overrides: {
         Row: {
-          athlete_id: string | null
+          athlete_id: string
           available_days: string[] | null
           created_at: string
           created_by: string | null
           dropped_sessions: Json | null
           id: string
-          program_id: string | null
+          program_id: string
           session_assignments: Json | null
           week_number: number
         }
         Insert: {
-          athlete_id?: string | null
+          athlete_id: string
           available_days?: string[] | null
           created_at?: string
           created_by?: string | null
           dropped_sessions?: Json | null
           id?: string
-          program_id?: string | null
+          program_id: string
           session_assignments?: Json | null
           week_number: number
         }
         Update: {
-          athlete_id?: string | null
+          athlete_id?: string
           available_days?: string[] | null
           created_at?: string
           created_by?: string | null
           dropped_sessions?: Json | null
           id?: string
-          program_id?: string | null
+          program_id?: string
           session_assignments?: Json | null
           week_number?: number
         }
         Relationships: [
-          {
-            foreignKeyName: "weekly_overrides_athlete_id_fkey"
-            columns: ["athlete_id"]
-            isOneToOne: false
-            referencedRelation: "athlete_profiles"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "weekly_overrides_program_id_fkey"
             columns: ["program_id"]
