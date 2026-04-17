@@ -139,7 +139,7 @@ export default function ProgramOverviewEditor({ parsed, startDate, onSaved }: Pr
     }
   };
 
-  const handleAssign = async (athleteId: string) => {
+  const handleAssign = async (athleteId: string, assignmentStartDate: string) => {
     setPublishing(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -151,6 +151,7 @@ export default function ProgramOverviewEditor({ parsed, startDate, onSaved }: Pr
         program_id: id,
         athlete_id: athleteId,
         assigned_by: user.id,
+        start_date: assignmentStartDate,
       });
       if (assignErr) throw assignErr;
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Calendar, RefreshCw, CheckCircle, Clock, ChevronLeft, ChevronRight, SkipForward, AlertTriangle, Activity } from 'lucide-react';
@@ -7,7 +7,11 @@ import { SessionBadge } from '@/components/SessionBadge';
 import { useAppStore } from '@/lib/store';
 import { format, parseISO, isToday } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { ProgramWeekView } from '@/components/ProgramWeekView';
+import { ProgramWeekView, type WeekOverride } from '@/components/ProgramWeekView';
+import { FlexibleWeekPlanner } from '@/components/FlexibleWeekPlanner';
+import { useUserRole } from '@/hooks/useUserRole';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -28,6 +32,11 @@ export default function WeeklyPlan() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [viewWeek, setViewWeek] = useState<number | null>(null);
 
+  const { isCoach } = useUserRole();
+  const { user } = useAuth();
+  const [override, setOverride] = useState<WeekOverride | null>(null);
+  const [flexibleOpen, setFlexibleOpen] = useState(false);
+
   useEffect(() => {
     fetchActiveProgram();
   }, []);
@@ -37,6 +46,30 @@ export default function WeeklyPlan() {
       setViewWeek(getCurrentProgramWeek());
     }
   }, [activeProgram]);
+
+  const loadOverride = useCallback(async () => {
+    if (!activeProgram || !user || viewWeek === null) {
+      setOverride(null);
+      return;
+    }
+    const { data } = await supabase
+      .from('weekly_overrides')
+      .select('session_assignments, dropped_sessions')
+      .eq('program_id', activeProgram.id)
+      .eq('athlete_id', user.id)
+      .eq('week_number', viewWeek)
+      .maybeSingle();
+    setOverride(
+      data
+        ? {
+            session_assignments: (data.session_assignments as unknown as WeekOverride['session_assignments']) ?? null,
+            dropped_sessions: (data.dropped_sessions as unknown as WeekOverride['dropped_sessions']) ?? null,
+          }
+        : null,
+    );
+  }, [activeProgram, user, viewWeek]);
+
+  useEffect(() => { loadOverride(); }, [loadOverride]);
 
   const toggleDay = (day: number) => {
     setSelectedDays(prev => 
@@ -100,9 +133,24 @@ export default function WeeklyPlan() {
         </div>
 
         <ProgramWeekView
-          sessions={activeProgram.program_sessions?.filter(s => s.week_number === viewWeek) || []}
+          sessions={activeProgram.program_sessions?.filter((s) => s.week_number === viewWeek) || []}
           onStartSession={() => navigate('/checkin')}
+          isCoach={isCoach}
+          override={override}
+          onOpenFlexible={() => setFlexibleOpen(true)}
         />
+
+        {flexibleOpen && user && (
+          <FlexibleWeekPlanner
+            open={flexibleOpen}
+            onOpenChange={setFlexibleOpen}
+            programId={activeProgram.id}
+            weekNumber={viewWeek}
+            sessions={(activeProgram.program_sessions?.filter((s) => s.week_number === viewWeek) || []) as any}
+            initialAthleteId={user.id}
+            onSaved={loadOverride}
+          />
+        )}
       </div>
     );
   }
