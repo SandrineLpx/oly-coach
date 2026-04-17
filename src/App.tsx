@@ -20,6 +20,7 @@ import ImportProgram from "./pages/ImportProgram";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
+import BecomeCoach from "./pages/BecomeCoach";
 
 const queryClient = new QueryClient();
 
@@ -75,6 +76,7 @@ function AppRoutes() {
         <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="/import-program" element={<ProtectedRoute><ImportProgram /></ProtectedRoute>} />
+        <Route path="/become-coach" element={<ProtectedRoute><BecomeCoach /></ProtectedRoute>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AppShell>
