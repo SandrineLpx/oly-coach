@@ -31,6 +31,7 @@ interface ParsedSession {
 interface ParsedProgram {
   name: string;
   description?: string;
+  phase_summary?: Array<{ weeks: string; label: string; summary: string }>;
   weeks: number;
   sessions: ParsedSession[];
 }
