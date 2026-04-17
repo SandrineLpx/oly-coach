@@ -537,13 +537,31 @@ export const useAppStore = create<AppState>()(
           .eq('program_id', program.id)
           .order('week_number')
           .order('day_of_week');
-        set({ activeProgram: { ...program, program_sessions: sessions || [] } as Program });
+        // Load this user's assignment (per-athlete timeline source of truth)
+        const { data: assignment } = await supabase
+          .from('program_assignments')
+          .select('start_date, current_week, status, completed_at')
+          .eq('program_id', program.id)
+          .eq('athlete_id', user.id)
+          .eq('is_active', true)
+          .maybeSingle();
+        set({
+          activeProgram: {
+            ...program,
+            program_sessions: sessions || [],
+            assignment: assignment || null,
+          } as Program,
+        });
       },
 
       getCurrentProgramWeek: () => {
-        const prog = get().activeProgram;
+        const prog = get().activeProgram as any;
         if (!prog) return null;
-        const start = new Date(prog.start_date);
+        // Prefer per-assignment start_date; fall back to programs.start_date
+        // for the pre-publish / self-coach flow where no assignment exists yet.
+        const startStr = prog.assignment?.start_date || prog.start_date;
+        if (!startStr) return null;
+        const start = new Date(startStr);
         const now = new Date();
         const diffMs = now.getTime() - start.getTime();
         const week = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1;
