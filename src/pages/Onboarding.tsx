@@ -12,6 +12,7 @@ import { Slider } from '@/components/ui/slider';
 import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import { PR } from '@/lib/types';
+import { usePowerUser } from '@/lib/powerUser';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const KEY_LIFTS = ['Snatch', 'Clean & Jerk', 'Back Squat', 'Front Squat'];
@@ -240,6 +241,7 @@ function PRsStep({ onNext }: StepProps) {
 
 function ScheduleStep({ onNext }: StepProps) {
   const { profile, setProfile } = useAppStore();
+  const isPowerUser = usePowerUser();
   const [selectedDays, setSelectedDays] = useState<number[]>(profile?.preferredDays || [1, 3, 5]);
   const [locationStatus, setLocationStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
 
@@ -329,25 +331,27 @@ function ScheduleStep({ onNext }: StepProps) {
         </p>
       </div>
       
-      {/* Location for weather */}
-      <div className="bg-card rounded-xl p-4 border border-border mb-8">
-        <Label className="text-sm font-medium">Location (for weather-based cardio suggestions)</Label>
-        <button
-          onClick={handleGetLocation}
-          disabled={locationStatus === 'loading'}
-          className={cn(
-            'w-full mt-3 p-3 rounded-lg border text-sm font-medium transition-all text-center',
-            locationStatus === 'done' ? 'border-success text-success bg-success/5' :
-            locationStatus === 'error' ? 'border-destructive text-destructive bg-destructive/5' :
-            'border-border text-muted-foreground hover:border-primary/50'
-          )}
-        >
-          {locationStatus === 'idle' && 'Enable location'}
-          {locationStatus === 'loading' && 'Getting location...'}
-          {locationStatus === 'done' && 'Location set'}
-          {locationStatus === 'error' && 'Could not get location — skip for now'}
-        </button>
-      </div>
+      {/* Location for weather (power users only — Olympic-lifting first app) */}
+      {isPowerUser && (
+        <div className="bg-card rounded-xl p-4 border border-border mb-8">
+          <Label className="text-sm font-medium">Location (for weather-based cardio suggestions)</Label>
+          <button
+            onClick={handleGetLocation}
+            disabled={locationStatus === 'loading'}
+            className={cn(
+              'w-full mt-3 p-3 rounded-lg border text-sm font-medium transition-all text-center',
+              locationStatus === 'done' ? 'border-success text-success bg-success/5' :
+              locationStatus === 'error' ? 'border-destructive text-destructive bg-destructive/5' :
+              'border-border text-muted-foreground hover:border-primary/50'
+            )}
+          >
+            {locationStatus === 'idle' && 'Enable location'}
+            {locationStatus === 'loading' && 'Getting location...'}
+            {locationStatus === 'done' && 'Location set'}
+            {locationStatus === 'error' && 'Could not get location — skip for now'}
+          </button>
+        </div>
+      )}
 
       <Button
         size="lg"
@@ -474,6 +478,7 @@ function IntegrationsStep({ onNext }: StepProps) {
 export default function Onboarding() {
   const navigate = useNavigate();
   const { completeOnboarding, generateWeeklyPlan, profile } = useAppStore();
+  const isPowerUser = usePowerUser();
   const [step, setStep] = useState(0);
 
   const nextStep = () => setStep(s => s + 1);
@@ -487,12 +492,16 @@ export default function Onboarding() {
     navigate('/');
   };
 
+  // Olympic-weightlifting first: hide cross-training integrations from
+  // standard users. Power users still see Strava + cardio prefs.
   const steps = [
     <WelcomeStep key="welcome" onNext={nextStep} />,
     <ProfileStep key="profile" onNext={nextStep} onBack={prevStep} />,
     <PRsStep key="prs" onNext={nextStep} onBack={prevStep} />,
-    <ScheduleStep key="schedule" onNext={nextStep} onBack={prevStep} />,
-    <IntegrationsStep key="integrations" onNext={finishOnboarding} onBack={prevStep} />,
+    <ScheduleStep key="schedule" onNext={isPowerUser ? nextStep : finishOnboarding} onBack={prevStep} />,
+    ...(isPowerUser
+      ? [<IntegrationsStep key="integrations" onNext={finishOnboarding} onBack={prevStep} />]
+      : []),
   ];
 
   return (

@@ -13,6 +13,7 @@ import { calculateReadiness, getDaysSinceHeavySession } from '@/lib/training-log
 import { fetchWeeklyForecast, DailyForecast, formatForecastShort, getWeatherDescription } from '@/lib/weather';
 import { format, isToday, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { usePowerUser } from '@/lib/powerUser';
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -25,6 +26,7 @@ export default function Dashboard() {
     onboardingComplete,
     getTodaySession 
   } = useAppStore();
+  const isPowerUser = usePowerUser();
 
   const [weather, setWeather] = useState<DailyForecast[]>([]);
 
@@ -34,8 +36,10 @@ export default function Dashboard() {
     }
   }, [onboardingComplete]);
 
-  // Fetch weather if location is set
+  // Weather is a power-user feature (cross-training); skip the network call
+  // entirely for standard Olympic-weightlifting accounts.
   useEffect(() => {
+    if (!isPowerUser) return;
     if (profile?.location) {
       fetchWeeklyForecast(
         profile.location.lat,
@@ -43,7 +47,7 @@ export default function Dashboard() {
         profile.outdoorThresholds,
       ).then(setWeather).catch(() => {});
     }
-  }, [profile?.location?.lat, profile?.location?.lon]);
+  }, [isPowerUser, profile?.location?.lat, profile?.location?.lon]);
 
   const todaySession = getTodaySession();
   const recentLogs = trainingLog.slice(-5).reverse();
@@ -257,8 +261,8 @@ export default function Dashboard() {
           </motion.div>
         )}
 
-        {/* Weather Widget */}
-        {weather.length > 0 && (
+        {/* Weather Widget — power users only */}
+        {isPowerUser && weather.length > 0 && (
           <motion.div variants={item}>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">

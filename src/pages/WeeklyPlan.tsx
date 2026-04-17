@@ -14,6 +14,7 @@ import { WeekSummary } from '@/components/WeekSummary';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { usePowerUser } from '@/lib/powerUser';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -35,6 +36,7 @@ export default function WeeklyPlan() {
   const [viewWeek, setViewWeek] = useState<number | null>(null);
 
   const { isCoach } = useUserRole();
+  const isPowerUser = usePowerUser();
   const { user } = useAuth();
   const [override, setOverride] = useState<WeekOverride | null>(null);
   const [flexibleOpen, setFlexibleOpen] = useState(false);
@@ -334,7 +336,7 @@ export default function WeeklyPlan() {
 
           <div className="space-y-3">
             {currentPlan.sessions
-              .filter(s => s.type !== 'REST' || s.cardioSuggestion)
+              .filter(s => s.type !== 'REST' || (isPowerUser && s.cardioSuggestion))
               .map((session) => {
                 const isSessionToday = isToday(parseISO(session.date));
                 const isSkipped = session.status === 'skipped';
@@ -342,8 +344,8 @@ export default function WeeklyPlan() {
                 const isCompleted = session.completed || session.status === 'completed';
                 const isInactive = isSkipped || isMoved;
 
-                // REST days with cardio suggestions
-                if (session.type === 'REST' && session.cardioSuggestion) {
+                // REST days with cardio suggestions (power users only)
+                if (isPowerUser && session.type === 'REST' && session.cardioSuggestion) {
                   return (
                     <motion.div
                       key={session.id}
