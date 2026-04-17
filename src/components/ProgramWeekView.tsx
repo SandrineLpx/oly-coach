@@ -51,6 +51,23 @@ export function ProgramWeekView({
 }: Props) {
   const todayDow = new Date().getDay();
   const hasOverride = !!override?.session_assignments?.length;
+  const [expandedRescued, setExpandedRescued] = useState<string | null>(null);
+
+  // Athlete-facing: group rescued exercises by the session they were absorbed into.
+  const rescuedBySession = useMemo(() => {
+    const map = new Map<string, Array<{ name: string; sets: number; reps: string; from: string }>>();
+    if (isCoach) return map;
+    const drops = override?.dropped_sessions ?? [];
+    for (const d of drops) {
+      for (const rx of d.rescued_exercises ?? []) {
+        if (!rx.absorb_into_session_id) continue;
+        const arr = map.get(rx.absorb_into_session_id) ?? [];
+        arr.push({ name: rx.name, sets: rx.sets, reps: rx.reps, from: d.focus_label });
+        map.set(rx.absorb_into_session_id, arr);
+      }
+    }
+    return map;
+  }, [override, isCoach]);
 
   // Build the effective ordered list of sessions to display.
   // - When override exists: use override schedule order (by day), look up session details by id, exclude dropped.
