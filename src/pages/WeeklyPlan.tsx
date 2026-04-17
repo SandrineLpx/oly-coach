@@ -90,8 +90,6 @@ export default function WeeklyPlan() {
 
   // If there's an active program from the database, show it
   if (activeProgram && viewWeek !== null) {
-    return (
-      <div className="min-h-screen px-4 py-6 pb-24">
     const ap: any = activeProgram;
     const phaseSummary = (ap.phase_summary as any[] | null) ?? null;
     const droppedThisWeek = override?.dropped_sessions ?? null;
@@ -99,6 +97,7 @@ export default function WeeklyPlan() {
 
     return (
       <div className="min-h-screen px-4 py-6 pb-24 space-y-4">
+
         {/* Compact mobile-first weekly summary */}
         <WeekSummary
           currentWeek={viewWeek}
