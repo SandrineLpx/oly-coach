@@ -448,7 +448,8 @@ export const useAppStore = create<AppState>()(
           .insert({
             user_id: user.id,
             name: parsed.name,
-            description: parsed.description || null,
+            description: parsed.description ?? null,
+            phase_summary: parsed.phase_summary ?? null,
             weeks: parsed.weeks,
             start_date: startDate,
             is_active: true,

@@ -225,6 +225,7 @@ export type Database = {
           is_active: boolean
           is_template: boolean | null
           name: string
+          phase_summary: Json | null
           source: string | null
           start_date: string
           user_id: string
@@ -237,6 +238,7 @@ export type Database = {
           is_active?: boolean
           is_template?: boolean | null
           name: string
+          phase_summary?: Json | null
           source?: string | null
           start_date: string
           user_id: string
@@ -249,6 +251,7 @@ export type Database = {
           is_active?: boolean
           is_template?: boolean | null
           name?: string
+          phase_summary?: Json | null
           source?: string | null
           start_date?: string
           user_id?: string
