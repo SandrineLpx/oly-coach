@@ -85,16 +85,67 @@ export default function ImportProgram() {
     setParsed(null);
 
     try {
-      const { data, error } = await supabase.functions.invoke('parse-program', {
-        body: { rawText },
-      });
+      // Split raw text into 4-week chunks to stay within edge function CPU limits.
+      // Look for "=== Sheet: Week N ===" markers; everything before the first Week sheet
+      // (e.g. "My Maxes") is treated as a preamble and prepended to every chunk for context.
+      const weekRegex = /(=== Sheet: Week\s*\d+\s*===)/gi;
+      const matches = [...rawText.matchAll(weekRegex)];
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      let chunks: string[];
+      if (matches.length === 0) {
+        // No week markers — send as a single chunk
+        chunks = [rawText];
+      } else {
+        const preamble = rawText.slice(0, matches[0].index ?? 0);
+        const weekBlocks: string[] = [];
+        for (let i = 0; i < matches.length; i++) {
+          const start = matches[i].index!;
+          const end = i + 1 < matches.length ? matches[i + 1].index! : rawText.length;
+          weekBlocks.push(rawText.slice(start, end));
+        }
+        // Group into 4-week chunks
+        const CHUNK_SIZE = 4;
+        chunks = [];
+        for (let i = 0; i < weekBlocks.length; i += CHUNK_SIZE) {
+          chunks.push(preamble + weekBlocks.slice(i, i + CHUNK_SIZE).join('\n'));
+        }
+      }
 
-      setParsed(data.program);
+      toast.info(`Parsing ${chunks.length} chunk${chunks.length > 1 ? 's' : ''} in parallel…`);
+
+      const results = await Promise.all(
+        chunks.map((chunk, idx) =>
+          supabase.functions.invoke('parse-program', {
+            body: { rawText: chunk, chunkIndex: idx, totalChunks: chunks.length },
+          })
+        )
+      );
+
+      // Validate and merge
+      const programs: ParsedProgram[] = [];
+      for (let i = 0; i < results.length; i++) {
+        const { data, error } = results[i];
+        if (error) throw error;
+        if (data?.error) throw new Error(`Chunk ${i + 1}: ${data.error}`);
+        if (!data?.program) throw new Error(`Chunk ${i + 1}: empty response`);
+        programs.push(data.program);
+      }
+
+      // Take program-level fields from the FIRST chunk; merge sessions from all
+      const first = programs[0];
+      const allSessions = programs.flatMap(p => p.sessions ?? []);
+      // Compute total weeks from session data when chunked
+      const maxWeek = allSessions.reduce((m, s) => Math.max(m, s.week_number ?? 0), 0);
+
+      const merged: ParsedProgram = {
+        ...first,
+        weeks: Math.max(first.weeks ?? 0, maxWeek),
+        sessions: allSessions,
+      };
+
+      setParsed(merged);
       setPreviewWeek(1);
-      toast.success('Program parsed successfully!');
+      toast.success(`Parsed ${merged.weeks} weeks · ${merged.sessions.length} sessions`);
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || 'Failed to parse program');
