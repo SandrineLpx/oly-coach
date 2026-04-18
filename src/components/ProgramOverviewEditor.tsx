@@ -51,7 +51,31 @@ interface SessionTemplate {
 interface Props {
   parsed: ParsedProgram;
   startDate: string;
+  /** Original (pre-renumber) week numbers actually imported. null = whole program. */
+  importedOriginalWeeks?: number[] | null;
   onSaved?: (programId: string, published: boolean) => void;
+}
+
+/**
+ * Parses a phase week-range string ("1-6", "7", "7,8", "Weeks 1-4") into the
+ * set of original-program week numbers it covers. Returns null if unparseable.
+ */
+function parsePhaseWeeks(weeksStr: string): number[] | null {
+  if (!weeksStr) return null;
+  const cleaned = weeksStr.replace(/weeks?/gi, '').trim();
+  const out = new Set<number>();
+  for (const part of cleaned.split(',')) {
+    const range = part.trim().match(/^(\d+)\s*[-–—]\s*(\d+)$/);
+    if (range) {
+      const a = parseInt(range[1], 10);
+      const b = parseInt(range[2], 10);
+      for (let i = Math.min(a, b); i <= Math.max(a, b); i++) out.add(i);
+      continue;
+    }
+    const single = part.trim().match(/^\d+$/);
+    if (single) out.add(parseInt(single[0], 10));
+  }
+  return out.size ? Array.from(out).sort((a, b) => a - b) : null;
 }
 
 const PRIORITY_VARIANTS: Record<Priority, string> = {
@@ -65,7 +89,7 @@ const uid = () =>
     ? crypto.randomUUID()
     : Math.random().toString(36).slice(2);
 
-export default function ProgramOverviewEditor({ parsed, startDate, onSaved }: Props) {
+export default function ProgramOverviewEditor({ parsed, startDate, importedOriginalWeeks, onSaved }: Props) {
   const { saveProgram } = useAppStore();
 
   const [name, setName] = useState(parsed.name);
