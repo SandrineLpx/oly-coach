@@ -293,7 +293,11 @@ export default function ImportProgram() {
 
       // Merge global overview metadata (description + phase_summary describe the
       // whole program). If global pass failed, fall back gracefully.
-      const overview = (globalResult as any)?.data?.overview;
+      const overview = (globalResult as any)?.data?.overview as GlobalOverview | undefined;
+      // Persist fresh overviews to cache for future re-parses of the same upload.
+      if (overview && !cachedOverview) {
+        writeGlobalCache(rawHash, overview);
+      }
       const totalProgramWeeks: number | undefined = overview?.total_program_weeks;
 
       let description = overview?.description as string | undefined;
