@@ -99,6 +99,8 @@ export default function ImportProgram() {
   const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [previewWeek, setPreviewWeek] = useState(1);
   const [selectedWeeks, setSelectedWeeks] = useState<Set<number>>(new Set());
+  // Original (pre-renumber) week numbers actually imported. null = whole program.
+  const [importedOriginalWeeks, setImportedOriginalWeeks] = useState<number[] | null>(null);
 
   const { preamble, weeks: detectedWeeks } = useMemo(() => detectWeeks(rawText), [rawText]);
   const totalDetected = detectedWeeks.length;
