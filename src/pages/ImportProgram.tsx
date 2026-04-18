@@ -230,11 +230,6 @@ export default function ImportProgram() {
         importedWeekCount = selectedSorted.length;
         originalRange = `${selectedSorted[0]}–${selectedSorted[selectedSorted.length - 1]}`;
       }
-
-      toast.info(
-        `Parsing ${chunks.length} session chunk${chunks.length > 1 ? 's' : ''} + 1 global pass…`,
-      );
-
       // Run the GLOBAL overview pass on the FULL raw text in parallel with the
       // session chunks. The global pass result is cached in sessionStorage
       // keyed by sha256(rawText), so re-parsing different week slices of the
