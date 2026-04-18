@@ -1,9 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { FileSpreadsheet, Eye, Loader2, ArrowLeft, AlertCircle } from 'lucide-react';
+import { FileSpreadsheet, Eye, Loader2, ArrowLeft, AlertCircle, CalendarRange } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Card } from '@/components/ui/card';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -36,6 +38,11 @@ interface ParsedProgram {
   sessions: ParsedSession[];
 }
 
+interface DetectedWeek {
+  weekNumber: number;
+  blockText: string;
+}
+
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const SESSION_COLORS: Record<string, string> = {
   T: 'text-blue-400',
@@ -45,6 +52,45 @@ const SESSION_COLORS: Record<string, string> = {
   REST: 'text-muted-foreground',
 };
 
+const DEFAULT_BATCH_SIZE = 4;
+
+/** Splits raw text into per-week blocks based on "=== Sheet: Week N ===" markers. */
+function detectWeeks(rawText: string): { preamble: string; weeks: DetectedWeek[] } {
+  const weekRegex = /=== Sheet: Week\s*(\d+)\s*===/gi;
+  const matches = [...rawText.matchAll(weekRegex)];
+  if (matches.length === 0) return { preamble: '', weeks: [] };
+
+  const preamble = rawText.slice(0, matches[0].index ?? 0);
+  const weeks: DetectedWeek[] = [];
+  for (let i = 0; i < matches.length; i++) {
+    const start = matches[i].index!;
+    const end = i + 1 < matches.length ? matches[i + 1].index! : rawText.length;
+    weeks.push({
+      weekNumber: parseInt(matches[i][1], 10),
+      blockText: rawText.slice(start, end),
+    });
+  }
+  return { preamble, weeks };
+}
+
+/**
+ * Re-numbers session week_number values so they start from 1 within the
+ * imported subset (e.g. importing weeks 5-8 of a 26-week program becomes
+ * weeks 1-4 in our database).
+ */
+function renumberSessions(
+  sessions: ParsedSession[],
+  selectedWeeks: number[],
+): ParsedSession[] {
+  const sortedUnique = [...new Set(selectedWeeks)].sort((a, b) => a - b);
+  const map = new Map<number, number>();
+  sortedUnique.forEach((orig, idx) => map.set(orig, idx + 1));
+  return sessions.map(s => ({
+    ...s,
+    week_number: map.get(s.week_number) ?? s.week_number,
+  }));
+}
+
 export default function ImportProgram() {
   const navigate = useNavigate();
   const [rawText, setRawText] = useState('');
@@ -52,6 +98,10 @@ export default function ImportProgram() {
   const [parsing, setParsing] = useState(false);
   const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [previewWeek, setPreviewWeek] = useState(1);
+  const [selectedWeeks, setSelectedWeeks] = useState<Set<number>>(new Set());
+
+  const { preamble, weeks: detectedWeeks } = useMemo(() => detectWeeks(rawText), [rawText]);
+  const totalDetected = detectedWeeks.length;
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -69,10 +119,40 @@ export default function ImportProgram() {
       lines.push('');
     });
 
-    setRawText(lines.join('\n'));
+    const text = lines.join('\n');
+    setRawText(text);
     setParsed(null);
-    toast.success(`Loaded ${wb.SheetNames.length} sheet(s) from ${file.name}`);
+
+    // Auto-select first 4 weeks if many weeks detected, otherwise select all.
+    const detected = detectWeeks(text).weeks;
+    const defaultSelection = detected.length > DEFAULT_BATCH_SIZE
+      ? detected.slice(0, DEFAULT_BATCH_SIZE).map(w => w.weekNumber)
+      : detected.map(w => w.weekNumber);
+    setSelectedWeeks(new Set(defaultSelection));
+
+    toast.success(
+      detected.length > DEFAULT_BATCH_SIZE
+        ? `Loaded ${file.name} · ${detected.length} weeks detected — first ${DEFAULT_BATCH_SIZE} pre-selected`
+        : `Loaded ${wb.SheetNames.length} sheet(s) from ${file.name}`,
+    );
   }, []);
+
+  const toggleWeek = (weekNumber: number) => {
+    setSelectedWeeks(prev => {
+      const next = new Set(prev);
+      if (next.has(weekNumber)) next.delete(weekNumber);
+      else next.add(weekNumber);
+      return next;
+    });
+  };
+
+  const selectFirstN = (n: number) => {
+    setSelectedWeeks(new Set(detectedWeeks.slice(0, n).map(w => w.weekNumber)));
+  };
+
+  const selectAll = () => {
+    setSelectedWeeks(new Set(detectedWeeks.map(w => w.weekNumber)));
+  };
 
   const handleParse = async () => {
     if (!rawText.trim()) {
@@ -84,30 +164,34 @@ export default function ImportProgram() {
     setParsed(null);
 
     try {
-      // Split raw text into 4-week chunks to stay within edge function CPU limits.
-      // Look for "=== Sheet: Week N ===" markers; everything before the first Week sheet
-      // (e.g. "My Maxes") is treated as a preamble and prepended to every chunk for context.
-      const weekRegex = /(=== Sheet: Week\s*\d+\s*===)/gi;
-      const matches = [...rawText.matchAll(weekRegex)];
-
+      // Build chunks from the SELECTED weeks only.
+      // If no week markers were detected, fall back to sending raw text as-is.
       let chunks: string[];
-      if (matches.length === 0) {
-        // No week markers — send as a single chunk
+      let importedWeekCount: number;
+      let originalRange: string | null = null;
+      let selectedSorted: number[] = [];
+
+      if (detectedWeeks.length === 0) {
         chunks = [rawText];
+        importedWeekCount = 0; // unknown — let parser decide
       } else {
-        const preamble = rawText.slice(0, matches[0].index ?? 0);
-        const weekBlocks: string[] = [];
-        for (let i = 0; i < matches.length; i++) {
-          const start = matches[i].index!;
-          const end = i + 1 < matches.length ? matches[i + 1].index! : rawText.length;
-          weekBlocks.push(rawText.slice(start, end));
+        selectedSorted = [...selectedWeeks].sort((a, b) => a - b);
+        if (selectedSorted.length === 0) {
+          toast.error('Select at least one week to import');
+          setParsing(false);
+          return;
         }
-        // Group into 4-week chunks
+        const blocks = detectedWeeks
+          .filter(w => selectedWeeks.has(w.weekNumber))
+          .map(w => w.blockText);
+
         const CHUNK_SIZE = 4;
         chunks = [];
-        for (let i = 0; i < weekBlocks.length; i += CHUNK_SIZE) {
-          chunks.push(preamble + weekBlocks.slice(i, i + CHUNK_SIZE).join('\n'));
+        for (let i = 0; i < blocks.length; i += CHUNK_SIZE) {
+          chunks.push(preamble + blocks.slice(i, i + CHUNK_SIZE).join('\n'));
         }
+        importedWeekCount = selectedSorted.length;
+        originalRange = `${selectedSorted[0]}–${selectedSorted[selectedSorted.length - 1]}`;
       }
 
       toast.info(`Parsing ${chunks.length} chunk${chunks.length > 1 ? 's' : ''} in parallel…`);
@@ -115,9 +199,16 @@ export default function ImportProgram() {
       const results = await Promise.all(
         chunks.map((chunk, idx) =>
           supabase.functions.invoke('parse-program', {
-            body: { rawText: chunk, chunkIndex: idx, totalChunks: chunks.length },
-          })
-        )
+            body: {
+              rawText: chunk,
+              chunkIndex: idx,
+              totalChunks: chunks.length,
+              // Tell the parser the actual scope so it stops hallucinating week counts.
+              importedWeekCount: importedWeekCount || undefined,
+              originalWeekRange: originalRange || undefined,
+            },
+          }),
+        ),
       );
 
       // Validate and merge
@@ -130,15 +221,20 @@ export default function ImportProgram() {
         programs.push(data.program);
       }
 
-      // Take program-level fields from the FIRST chunk; merge sessions from all
       const first = programs[0];
-      const allSessions = programs.flatMap(p => p.sessions ?? []);
-      // Compute total weeks from session data when chunked
+      let allSessions = programs.flatMap(p => p.sessions ?? []);
+
+      // Re-number sessions so weeks start at 1 in our system.
+      if (selectedSorted.length > 0) {
+        allSessions = renumberSessions(allSessions, selectedSorted);
+      }
+
       const maxWeek = allSessions.reduce((m, s) => Math.max(m, s.week_number ?? 0), 0);
+      const finalWeeks = importedWeekCount || Math.max(first.weeks ?? 0, maxWeek);
 
       const merged: ParsedProgram = {
         ...first,
-        weeks: Math.max(first.weeks ?? 0, maxWeek),
+        weeks: finalWeeks,
         sessions: allSessions,
       };
 
@@ -152,8 +248,6 @@ export default function ImportProgram() {
       setParsing(false);
     }
   };
-
-  // Save flow now lives inside ProgramOverviewEditor (Save draft / Assign to athlete).
 
   const weekSessions = parsed?.sessions.filter(s => s.week_number === previewWeek) || [];
 
@@ -179,14 +273,81 @@ export default function ImportProgram() {
 
         <Textarea
           value={rawText}
-          onChange={e => { setRawText(e.target.value); setParsed(null); }}
+          onChange={e => {
+            setRawText(e.target.value);
+            setParsed(null);
+            const detected = detectWeeks(e.target.value).weeks;
+            const defaultSelection = detected.length > DEFAULT_BATCH_SIZE
+              ? detected.slice(0, DEFAULT_BATCH_SIZE).map(w => w.weekNumber)
+              : detected.map(w => w.weekNumber);
+            setSelectedWeeks(new Set(defaultSelection));
+          }}
           placeholder="Paste your program here (copy from Excel, or type it out)..."
           className="min-h-[200px] font-mono text-xs"
         />
 
+        {/* Week selector — only shown when we detected weeks in the input */}
+        {totalDetected > 0 && (
+          <Card className="p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <CalendarRange className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-semibold">Which weeks to import</h3>
+              <span className="text-xs text-muted-foreground ml-auto">
+                {selectedWeeks.size} of {totalDetected}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Detected {totalDetected} weeks. Importing fewer weeks at once is faster and easier
+              to review. You can always import more later.
+            </p>
+
+            <div className="flex flex-wrap gap-1.5">
+              <Button size="sm" variant="outline" onClick={() => selectFirstN(4)} className="h-7 text-xs">
+                First 4
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => selectFirstN(8)} className="h-7 text-xs">
+                First 8
+              </Button>
+              <Button size="sm" variant="outline" onClick={selectAll} className="h-7 text-xs">
+                All ({totalDetected})
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setSelectedWeeks(new Set())} className="h-7 text-xs">
+                Clear
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 pt-1">
+              {detectedWeeks.map(w => {
+                const checked = selectedWeeks.has(w.weekNumber);
+                return (
+                  <label
+                    key={w.weekNumber}
+                    className={`flex items-center justify-center gap-1.5 rounded-md border px-2 py-2 text-xs font-medium cursor-pointer transition-colors ${
+                      checked
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border text-muted-foreground hover:border-primary/40'
+                    }`}
+                  >
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={() => toggleWeek(w.weekNumber)}
+                      className="h-3.5 w-3.5"
+                    />
+                    Wk {w.weekNumber}
+                  </label>
+                );
+              })}
+            </div>
+          </Card>
+        )}
+
         <Button onClick={handleParse} disabled={parsing || !rawText.trim()} className="w-full">
           {parsing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
-          {parsing ? 'Parsing with AI…' : 'Parse Program'}
+          {parsing
+            ? 'Parsing with AI…'
+            : totalDetected > 0
+            ? `Parse ${selectedWeeks.size} week${selectedWeeks.size !== 1 ? 's' : ''}`
+            : 'Parse Program'}
         </Button>
       </div>
 
