@@ -194,27 +194,37 @@ export default function ImportProgram() {
         originalRange = `${selectedSorted[0]}–${selectedSorted[selectedSorted.length - 1]}`;
       }
 
-      toast.info(`Parsing ${chunks.length} chunk${chunks.length > 1 ? 's' : ''} in parallel…`);
-
-      const results = await Promise.all(
-        chunks.map((chunk, idx) =>
-          supabase.functions.invoke('parse-program', {
-            body: {
-              rawText: chunk,
-              chunkIndex: idx,
-              totalChunks: chunks.length,
-              // Tell the parser the actual scope so it stops hallucinating week counts.
-              importedWeekCount: importedWeekCount || undefined,
-              originalWeekRange: originalRange || undefined,
-            },
-          }),
-        ),
+      toast.info(
+        `Parsing ${chunks.length} session chunk${chunks.length > 1 ? 's' : ''} + 1 global pass…`,
       );
 
-      // Validate and merge
+      // Run the GLOBAL overview pass on the FULL raw text in parallel with the
+      // session chunks. The global pass produces description + phase_summary
+      // covering the entire program, so the explanation reflects the whole
+      // cycle even when only a subset of weeks is being imported.
+      const sessionInvocations = chunks.map((chunk, idx) =>
+        supabase.functions.invoke('parse-program', {
+          body: {
+            rawText: chunk,
+            mode: 'sessions',
+            chunkIndex: idx,
+            totalChunks: chunks.length,
+          },
+        }),
+      );
+      const globalInvocation = supabase.functions.invoke('parse-program', {
+        body: { rawText, mode: 'global' },
+      });
+
+      const [sessionResults, globalResult] = await Promise.all([
+        Promise.all(sessionInvocations),
+        globalInvocation,
+      ]);
+
+      // Validate session results
       const programs: ParsedProgram[] = [];
-      for (let i = 0; i < results.length; i++) {
-        const { data, error } = results[i];
+      for (let i = 0; i < sessionResults.length; i++) {
+        const { data, error } = sessionResults[i];
         if (error) throw error;
         if (data?.error) throw new Error(`Chunk ${i + 1}: ${data.error}`);
         if (!data?.program) throw new Error(`Chunk ${i + 1}: empty response`);
@@ -232,15 +242,31 @@ export default function ImportProgram() {
       const maxWeek = allSessions.reduce((m, s) => Math.max(m, s.week_number ?? 0), 0);
       const finalWeeks = importedWeekCount || Math.max(first.weeks ?? 0, maxWeek);
 
+      // Merge global overview metadata (description + phase_summary describe the
+      // whole program). If global pass failed, fall back gracefully.
+      const overview = (globalResult as any)?.data?.overview;
+      const totalProgramWeeks: number | undefined = overview?.total_program_weeks;
+
+      let description = overview?.description as string | undefined;
+      if (description && originalRange && importedWeekCount && totalProgramWeeks &&
+          totalProgramWeeks > importedWeekCount) {
+        description = `${description}\n\nYou are currently viewing weeks ${originalRange} of this ${totalProgramWeeks}-week program (${importedWeekCount} week${importedWeekCount === 1 ? '' : 's'}).`;
+      }
+
       const merged: ParsedProgram = {
         ...first,
+        name: overview?.name || first.name,
+        description,
+        phase_summary: overview?.phase_summary?.length ? overview.phase_summary : first.phase_summary,
         weeks: finalWeeks,
         sessions: allSessions,
       };
 
       setParsed(merged);
       setPreviewWeek(1);
-      toast.success(`Parsed ${merged.weeks} weeks · ${merged.sessions.length} sessions`);
+      toast.success(
+        `Parsed ${merged.weeks} of ${totalProgramWeeks ?? merged.weeks} weeks · ${merged.sessions.length} sessions`,
+      );
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || 'Failed to parse program');
