@@ -99,6 +99,8 @@ export default function ImportProgram() {
   const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [previewWeek, setPreviewWeek] = useState(1);
   const [selectedWeeks, setSelectedWeeks] = useState<Set<number>>(new Set());
+  // Original (pre-renumber) week numbers actually imported. null = whole program.
+  const [importedOriginalWeeks, setImportedOriginalWeeks] = useState<number[] | null>(null);
 
   const { preamble, weeks: detectedWeeks } = useMemo(() => detectWeeks(rawText), [rawText]);
   const totalDetected = detectedWeeks.length;
@@ -263,6 +265,7 @@ export default function ImportProgram() {
       };
 
       setParsed(merged);
+      setImportedOriginalWeeks(selectedSorted.length > 0 ? selectedSorted : null);
       setPreviewWeek(1);
       toast.success(
         `Parsed ${merged.weeks} of ${totalProgramWeeks ?? merged.weeks} weeks · ${merged.sessions.length} sessions`,
@@ -448,6 +451,7 @@ export default function ImportProgram() {
           <ProgramOverviewEditor
             parsed={parsed}
             startDate={startDate}
+            importedOriginalWeeks={importedOriginalWeeks}
             onSaved={(_id, published) => {
               if (published) navigate('/settings');
             }}
