@@ -106,7 +106,7 @@ serve(async (req) => {
         body: JSON.stringify({
           model: "google/gemini-2.5-flash",
           messages: [
-            { role: "system", content: SYSTEM_PROMPT + chunkInstruction },
+            { role: "system", content: SYSTEM_PROMPT + scopeInstruction + chunkInstruction },
             {
               role: "user",
               content: `Parse this training program:\n\n${rawText}`,
