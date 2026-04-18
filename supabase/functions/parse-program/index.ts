@@ -65,7 +65,7 @@ serve(async (req) => {
   }
 
   try {
-    const { rawText, chunkIndex, totalChunks } = await req.json();
+    const { rawText, chunkIndex, totalChunks, importedWeekCount, originalWeekRange } = await req.json();
     if (!rawText || typeof rawText !== "string") {
       return new Response(JSON.stringify({ error: "rawText is required" }), {
         status: 400,
@@ -76,10 +76,19 @@ serve(async (req) => {
     const isChunked = typeof totalChunks === "number" && totalChunks > 1;
     const isFirstChunk = !isChunked || chunkIndex === 0;
 
+    // Scope instruction — when the user only imports a subset of a larger program,
+    // we MUST tell the model the true scope, otherwise it hallucinates totals
+    // ("This is a 13-week program" when the user only sent 4 weeks of a 26-week one).
+    const scopeInstruction = importedWeekCount
+      ? `\n\nIMPORTANT SCOPE: The user is importing ${importedWeekCount} week${importedWeekCount === 1 ? "" : "s"}${
+          originalWeekRange ? ` (originally weeks ${originalWeekRange} of a larger program)` : ""
+        }. Set "weeks" = ${importedWeekCount}. In the description, refer to this as a "${importedWeekCount}-week block" — do NOT mention any other total. Phase summaries must only cover weeks 1–${importedWeekCount}.`
+      : "";
+
     // For non-first chunks, instruct the model to skip program-level work to save CPU.
     const chunkInstruction = isChunked
       ? isFirstChunk
-        ? `\n\nThis is chunk 1 of ${totalChunks}. Parse the sessions in this chunk AND produce program-level fields (name, description, phase_summary). Use the visible weeks here plus typical structure to infer phases for the whole program.`
+        ? `\n\nThis is chunk 1 of ${totalChunks}. Parse the sessions in this chunk AND produce program-level fields (name, description, phase_summary).`
         : `\n\nThis is chunk ${chunkIndex + 1} of ${totalChunks}. Parse the sessions in this chunk ONLY. For program-level fields, return name="(chunk)", description="", phase_summary=[]. Do NOT try to summarize the whole program.`
       : "";
 
