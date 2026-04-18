@@ -1,5 +1,13 @@
 import { useState } from 'react';
-import { Plus, Trash2, ChevronUp, ChevronDown, GripVertical } from 'lucide-react';
+import { Plus, Trash2, GripVertical } from 'lucide-react';
+import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor,
+  useSensor, useSensors, type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy, arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -9,6 +17,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 type Priority = 'primary' | 'secondary' | 'supplemental';
 
@@ -49,8 +58,115 @@ interface Props {
   onChange: (next: EditorSession[]) => void;
 }
 
+interface ExerciseRowProps {
+  ex: EditorExercise;
+  onPatch: (patch: Partial<EditorExercise>) => void;
+  onDelete: () => void;
+}
+
+function SortableExerciseRow({ ex, onPatch, onDelete }: ExerciseRowProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: ex._uid,
+  });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'rounded-lg border border-border p-2 space-y-1.5 bg-muted/20',
+        isDragging && 'opacity-60 shadow-lg z-10 relative',
+      )}
+    >
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          aria-label="Drag to reorder"
+          className="touch-none p-1.5 -ml-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted active:bg-muted cursor-grab active:cursor-grabbing"
+          // Prevent the drag handle from stealing focus / scrolling on touch
+          onClick={(e) => e.preventDefault()}
+        >
+          <GripVertical className="w-4 h-4" />
+        </button>
+        <Input
+          value={ex.name}
+          onChange={e => onPatch({ name: e.target.value })}
+          placeholder="Exercise name"
+          className="h-9 text-sm flex-1"
+        />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-destructive hover:text-destructive"
+          onClick={onDelete}
+          aria-label="Delete exercise"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </Button>
+      </div>
+      <div className="grid grid-cols-3 gap-1.5">
+        <div>
+          <Label className="text-[10px] text-muted-foreground">Sets</Label>
+          <Input
+            type="number"
+            inputMode="numeric"
+            value={ex.sets ?? ''}
+            onChange={e =>
+              onPatch({ sets: e.target.value === '' ? null : Number(e.target.value) })
+            }
+            className="h-9 text-xs"
+          />
+        </div>
+        <div>
+          <Label className="text-[10px] text-muted-foreground">Reps</Label>
+          <Input
+            value={ex.reps ?? ''}
+            onChange={e => onPatch({ reps: e.target.value })}
+            placeholder="5×3"
+            className="h-9 text-xs"
+          />
+        </div>
+        <div>
+          <Label className="text-[10px] text-muted-foreground">%1RM</Label>
+          <Input
+            type="number"
+            inputMode="numeric"
+            value={ex.percent_of_max ?? ''}
+            onChange={e =>
+              onPatch({
+                percent_of_max: e.target.value === '' ? null : Number(e.target.value),
+              })
+            }
+            className="h-9 text-xs"
+          />
+        </div>
+      </div>
+      <Textarea
+        value={ex.notes ?? ''}
+        onChange={e => onPatch({ notes: e.target.value })}
+        placeholder="Notes"
+        className="min-h-[40px] text-xs"
+      />
+    </div>
+  );
+}
+
 export default function WeeklyContentEditor({ sessions, weeks, onChange }: Props) {
   const [activeWeek, setActiveWeek] = useState('1');
+
+  // PointerSensor with small distance prevents drag from firing on simple clicks.
+  // TouchSensor with delay lets the user scroll the page normally; long-press to drag.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   const replaceSession = (sUid: string, patch: Partial<EditorSession>) => {
     onChange(sessions.map(s => (s._uid === sUid ? { ...s, ...patch } : s)));
@@ -102,16 +218,16 @@ export default function WeeklyContentEditor({ sessions, weeks, onChange }: Props
     );
   };
 
-  const moveExercise = (sUid: string, exUid: string, dir: -1 | 1) => {
+  const handleDragEnd = (sUid: string) => (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
     onChange(
       sessions.map(s => {
         if (s._uid !== sUid) return s;
-        const arr = [...s.exercises];
-        const i = arr.findIndex(e => e._uid === exUid);
-        const j = i + dir;
-        if (i < 0 || j < 0 || j >= arr.length) return s;
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-        return { ...s, exercises: arr };
+        const oldIdx = s.exercises.findIndex(e => e._uid === active.id);
+        const newIdx = s.exercises.findIndex(e => e._uid === over.id);
+        if (oldIdx < 0 || newIdx < 0) return s;
+        return { ...s, exercises: arrayMove(s.exercises, oldIdx, newIdx) };
       }),
     );
   };
@@ -187,104 +303,37 @@ export default function WeeklyContentEditor({ sessions, weeks, onChange }: Props
                   </div>
                 </div>
 
-                {/* Exercises */}
-                <div className="space-y-2">
-                  {session.exercises.map((ex, idx) => (
-                    <div key={ex._uid} className="rounded-lg border border-border p-2 space-y-1.5 bg-muted/20">
-                      <div className="flex items-center gap-1">
-                        <GripVertical className="w-3 h-3 text-muted-foreground shrink-0" />
-                        <Input
-                          value={ex.name}
-                          onChange={e => replaceExercise(session._uid, ex._uid, { name: e.target.value })}
-                          placeholder="Exercise name"
-                          className="h-9 text-sm flex-1"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => moveExercise(session._uid, ex._uid, -1)}
-                          disabled={idx === 0}
-                          aria-label="Move up"
-                        >
-                          <ChevronUp className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7"
-                          onClick={() => moveExercise(session._uid, ex._uid, 1)}
-                          disabled={idx === session.exercises.length - 1}
-                          aria-label="Move down"
-                        >
-                          <ChevronDown className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive hover:text-destructive"
-                          onClick={() => deleteExercise(session._uid, ex._uid)}
-                          aria-label="Delete exercise"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                      <div className="grid grid-cols-3 gap-1.5">
-                        <div>
-                          <Label className="text-[10px] text-muted-foreground">Sets</Label>
-                          <Input
-                            type="number"
-                            inputMode="numeric"
-                            value={ex.sets ?? ''}
-                            onChange={e =>
-                              replaceExercise(session._uid, ex._uid, {
-                                sets: e.target.value === '' ? null : Number(e.target.value),
-                              })
-                            }
-                            className="h-9 text-xs"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-[10px] text-muted-foreground">Reps</Label>
-                          <Input
-                            value={ex.reps ?? ''}
-                            onChange={e => replaceExercise(session._uid, ex._uid, { reps: e.target.value })}
-                            placeholder="5×3"
-                            className="h-9 text-xs"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-[10px] text-muted-foreground">%1RM</Label>
-                          <Input
-                            type="number"
-                            inputMode="numeric"
-                            value={ex.percent_of_max ?? ''}
-                            onChange={e =>
-                              replaceExercise(session._uid, ex._uid, {
-                                percent_of_max: e.target.value === '' ? null : Number(e.target.value),
-                              })
-                            }
-                            className="h-9 text-xs"
-                          />
-                        </div>
-                      </div>
-                      <Textarea
-                        value={ex.notes ?? ''}
-                        onChange={e => replaceExercise(session._uid, ex._uid, { notes: e.target.value })}
-                        placeholder="Notes"
-                        className="min-h-[40px] text-xs"
-                      />
-                    </div>
-                  ))}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => addExercise(session._uid)}
-                    className="w-full h-8 text-xs"
+                {/* Exercises — drag to reorder */}
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd(session._uid)}
+                >
+                  <SortableContext
+                    items={session.exercises.map(e => e._uid)}
+                    strategy={verticalListSortingStrategy}
                   >
-                    <Plus className="w-3.5 h-3.5" /> Add exercise
-                  </Button>
-                </div>
+                    <div className="space-y-2">
+                      {session.exercises.map(ex => (
+                        <SortableExerciseRow
+                          key={ex._uid}
+                          ex={ex}
+                          onPatch={patch => replaceExercise(session._uid, ex._uid, patch)}
+                          onDelete={() => deleteExercise(session._uid, ex._uid)}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addExercise(session._uid)}
+                  className="w-full h-8 text-xs"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add exercise
+                </Button>
               </Card>
             ))}
 
