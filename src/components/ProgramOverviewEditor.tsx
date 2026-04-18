@@ -304,23 +304,47 @@ export default function ProgramOverviewEditor({ parsed, startDate, importedOrigi
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 <Layers className="w-3.5 h-3.5" /> Phase breakdown
               </div>
-              {phases.map((phase, i) => (
-                <div key={i} className="rounded-lg border border-border p-3 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="font-mono">Wk {phase.weeks}</Badge>
-                    <Input
-                      value={phase.label}
-                      onChange={e => updatePhase(i, { label: e.target.value })}
-                      className="h-8 font-semibold"
+              {importedOriginalWeeks && importedOriginalWeeks.length > 0 && (
+                <p className="text-xs text-muted-foreground -mt-1">
+                  Dimmed phases fall outside the imported weeks ({importedOriginalWeeks[0]}–
+                  {importedOriginalWeeks[importedOriginalWeeks.length - 1]}).
+                </p>
+              )}
+              {phases.map((phase, i) => {
+                const phaseWeeks = parsePhaseWeeks(phase.weeks);
+                const importedSet = importedOriginalWeeks ? new Set(importedOriginalWeeks) : null;
+                const inRange =
+                  !importedSet || !phaseWeeks
+                    ? true
+                    : phaseWeeks.some(w => importedSet.has(w));
+                return (
+                  <div
+                    key={i}
+                    className={`rounded-lg border border-border p-3 space-y-2 transition-opacity ${
+                      inRange ? '' : 'opacity-40'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="font-mono">Wk {phase.weeks}</Badge>
+                      {!inRange && (
+                        <Badge variant="secondary" className="text-[10px] uppercase tracking-wide">
+                          Out of range
+                        </Badge>
+                      )}
+                      <Input
+                        value={phase.label}
+                        onChange={e => updatePhase(i, { label: e.target.value })}
+                        className="h-8 font-semibold"
+                      />
+                    </div>
+                    <Textarea
+                      value={phase.summary}
+                      onChange={e => updatePhase(i, { summary: e.target.value })}
+                      className="min-h-[70px] text-sm"
                     />
                   </div>
-                  <Textarea
-                    value={phase.summary}
-                    onChange={e => updatePhase(i, { summary: e.target.value })}
-                    className="min-h-[70px] text-sm"
-                  />
-                </div>
-              ))}
+                );
+              })}
             </Card>
           )}
 
