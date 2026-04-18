@@ -265,6 +265,7 @@ export default function ImportProgram() {
       };
 
       setParsed(merged);
+      setImportedOriginalWeeks(selectedSorted.length > 0 ? selectedSorted : null);
       setPreviewWeek(1);
       toast.success(
         `Parsed ${merged.weeks} of ${totalProgramWeeks ?? merged.weeks} weeks · ${merged.sessions.length} sessions`,
@@ -450,6 +451,7 @@ export default function ImportProgram() {
           <ProgramOverviewEditor
             parsed={parsed}
             startDate={startDate}
+            importedOriginalWeeks={importedOriginalWeeks}
             onSaved={(_id, published) => {
               if (published) navigate('/settings');
             }}
