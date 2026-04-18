@@ -91,6 +91,41 @@ function renumberSessions(
   }));
 }
 
+/** SHA-256 hash of a string (hex). Used as cache key for the global pass. */
+async function sha256Hex(input: string): Promise<string> {
+  const buf = new TextEncoder().encode(input);
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(hash))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+const GLOBAL_CACHE_PREFIX = 'parse-program:global:';
+
+interface GlobalOverview {
+  name?: string;
+  description?: string;
+  phase_summary?: Array<{ weeks: string; label: string; summary: string }>;
+  total_program_weeks?: number;
+}
+
+function readGlobalCache(hash: string): GlobalOverview | null {
+  try {
+    const raw = sessionStorage.getItem(GLOBAL_CACHE_PREFIX + hash);
+    return raw ? (JSON.parse(raw) as GlobalOverview) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeGlobalCache(hash: string, overview: GlobalOverview) {
+  try {
+    sessionStorage.setItem(GLOBAL_CACHE_PREFIX + hash, JSON.stringify(overview));
+  } catch {
+    /* quota exceeded — ignore */
+  }
+}
+
 export default function ImportProgram() {
   const navigate = useNavigate();
   const [rawText, setRawText] = useState('');
