@@ -236,9 +236,12 @@ export default function ImportProgram() {
       );
 
       // Run the GLOBAL overview pass on the FULL raw text in parallel with the
-      // session chunks. The global pass produces description + phase_summary
-      // covering the entire program, so the explanation reflects the whole
-      // cycle even when only a subset of weeks is being imported.
+      // session chunks. The global pass result is cached in sessionStorage
+      // keyed by sha256(rawText), so re-parsing different week slices of the
+      // same upload reuses the overview instead of re-calling the edge fn.
+      const rawHash = await sha256Hex(rawText);
+      const cachedOverview = readGlobalCache(rawHash);
+
       const sessionInvocations = chunks.map((chunk, idx) =>
         supabase.functions.invoke('parse-program', {
           body: {
@@ -249,9 +252,18 @@ export default function ImportProgram() {
           },
         }),
       );
-      const globalInvocation = supabase.functions.invoke('parse-program', {
-        body: { rawText, mode: 'global' },
-      });
+
+      const globalInvocation = cachedOverview
+        ? Promise.resolve({ data: { overview: cachedOverview }, error: null })
+        : supabase.functions.invoke('parse-program', {
+            body: { rawText, mode: 'global' },
+          });
+
+      toast.info(
+        cachedOverview
+          ? `Parsing ${chunks.length} session chunk${chunks.length > 1 ? 's' : ''} (overview cached)…`
+          : `Parsing ${chunks.length} session chunk${chunks.length > 1 ? 's' : ''} + 1 global pass…`,
+      );
 
       const [sessionResults, globalResult] = await Promise.all([
         Promise.all(sessionInvocations),
