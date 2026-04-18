@@ -91,6 +91,41 @@ function renumberSessions(
   }));
 }
 
+/** SHA-256 hash of a string (hex). Used as cache key for the global pass. */
+async function sha256Hex(input: string): Promise<string> {
+  const buf = new TextEncoder().encode(input);
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(hash))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+const GLOBAL_CACHE_PREFIX = 'parse-program:global:';
+
+interface GlobalOverview {
+  name?: string;
+  description?: string;
+  phase_summary?: Array<{ weeks: string; label: string; summary: string }>;
+  total_program_weeks?: number;
+}
+
+function readGlobalCache(hash: string): GlobalOverview | null {
+  try {
+    const raw = sessionStorage.getItem(GLOBAL_CACHE_PREFIX + hash);
+    return raw ? (JSON.parse(raw) as GlobalOverview) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeGlobalCache(hash: string, overview: GlobalOverview) {
+  try {
+    sessionStorage.setItem(GLOBAL_CACHE_PREFIX + hash, JSON.stringify(overview));
+  } catch {
+    /* quota exceeded — ignore */
+  }
+}
+
 export default function ImportProgram() {
   const navigate = useNavigate();
   const [rawText, setRawText] = useState('');
@@ -195,15 +230,13 @@ export default function ImportProgram() {
         importedWeekCount = selectedSorted.length;
         originalRange = `${selectedSorted[0]}–${selectedSorted[selectedSorted.length - 1]}`;
       }
-
-      toast.info(
-        `Parsing ${chunks.length} session chunk${chunks.length > 1 ? 's' : ''} + 1 global pass…`,
-      );
-
       // Run the GLOBAL overview pass on the FULL raw text in parallel with the
-      // session chunks. The global pass produces description + phase_summary
-      // covering the entire program, so the explanation reflects the whole
-      // cycle even when only a subset of weeks is being imported.
+      // session chunks. The global pass result is cached in sessionStorage
+      // keyed by sha256(rawText), so re-parsing different week slices of the
+      // same upload reuses the overview instead of re-calling the edge fn.
+      const rawHash = await sha256Hex(rawText);
+      const cachedOverview = readGlobalCache(rawHash);
+
       const sessionInvocations = chunks.map((chunk, idx) =>
         supabase.functions.invoke('parse-program', {
           body: {
@@ -214,9 +247,18 @@ export default function ImportProgram() {
           },
         }),
       );
-      const globalInvocation = supabase.functions.invoke('parse-program', {
-        body: { rawText, mode: 'global' },
-      });
+
+      const globalInvocation = cachedOverview
+        ? Promise.resolve({ data: { overview: cachedOverview }, error: null })
+        : supabase.functions.invoke('parse-program', {
+            body: { rawText, mode: 'global' },
+          });
+
+      toast.info(
+        cachedOverview
+          ? `Parsing ${chunks.length} session chunk${chunks.length > 1 ? 's' : ''} (overview cached)…`
+          : `Parsing ${chunks.length} session chunk${chunks.length > 1 ? 's' : ''} + 1 global pass…`,
+      );
 
       const [sessionResults, globalResult] = await Promise.all([
         Promise.all(sessionInvocations),
@@ -246,7 +288,11 @@ export default function ImportProgram() {
 
       // Merge global overview metadata (description + phase_summary describe the
       // whole program). If global pass failed, fall back gracefully.
-      const overview = (globalResult as any)?.data?.overview;
+      const overview = (globalResult as any)?.data?.overview as GlobalOverview | undefined;
+      // Persist fresh overviews to cache for future re-parses of the same upload.
+      if (overview && !cachedOverview) {
+        writeGlobalCache(rawHash, overview);
+      }
       const totalProgramWeeks: number | undefined = overview?.total_program_weeks;
 
       let description = overview?.description as string | undefined;
